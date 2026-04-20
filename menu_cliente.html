@@ -499,7 +499,7 @@ body{
 
 /* ── LOYALTY TRACKER ── */
 .loyalty-banner{
-  background:linear-gradient(135deg, var(--ink) 0%, #1a1a1a 100%);
+  background:#1a1a1a;
   color:#fff;margin:16px;border-radius:16px;padding:20px;
   display:none;
 }
@@ -509,7 +509,11 @@ body{
 .loyalty-count{font-size:22px;font-weight:500;color:var(--gold);}
 .loyalty-bar-bg{background:rgba(255,255,255,0.15);border-radius:4px;height:6px;margin-bottom:8px;}
 .loyalty-bar-fill{background:var(--gold);border-radius:4px;height:6px;transition:width 0.5s;}
+.loyalty-label{font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.5);margin-bottom:4px;}
 .loyalty-sub{font-size:12px;color:rgba(255,255,255,0.5);}
+[data-theme="dark"] .loyalty-banner{background:#2c2c2e;border:1px solid var(--border);}
+[data-theme="dark"] .loyalty-label,
+[data-theme="dark"] .loyalty-sub{color:var(--ink-muted) !important;}
 
 /* ── PROFILE DRAWER ── */
 .profile-section{margin-bottom:20px;}
@@ -766,9 +770,9 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
 <div class="loyalty-banner" id="loyalty-banner">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
     <div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:rgba(255,255,255,0.5);margin-bottom:4px">Tus puntos</div>
+      <div class="loyalty-label">Tus puntos</div>
       <div style="font-family:var(--ff-display);font-size:32px;font-weight:300;color:var(--gold)" id="loyalty-count">0</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px" id="loyalty-sub"></div>
+      <div class="loyalty-sub" style="margin-top:2px" id="loyalty-sub"></div>
     </div>
     <button onclick="openRewardsModal()" style="background:var(--gold);color:#000;border:none;border-radius:10px;padding:12px 20px;font-family:var(--ff);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Ver recompensas</button>
   </div>
