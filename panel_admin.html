@@ -1361,14 +1361,18 @@ document.getElementById('btn-save-product').onclick = async () => {
   if (!data.name||!data.price) { showToast('Nombre y precio son requeridos'); return; }
   const btn = document.getElementById('btn-save-product');
   btn.disabled = true; btn.textContent = 'Guardando...';
+  let saveError = null;
   if (id) {
     const { error } = await sb.from('products').update(data).eq('id',id);
+    saveError = error;
     if (!error) { const idx=state.products.findIndex(p=>p.id===id); if(idx!==-1) state.products[idx]={...state.products[idx],...data}; }
   } else {
-    const { data: newProd } = await sb.from('products').insert(data).select('*,categories(name,emoji)').single();
+    const { data: newProd, error } = await sb.from('products').insert(data).select('*,categories(name,emoji)').single();
+    saveError = error;
     if (newProd) state.products.push(newProd);
   }
   btn.disabled = false; btn.textContent = 'Guardar producto';
+  if (saveError) { showToast('Error: ' + saveError.message); console.error('saveProduct error:', saveError); return; }
   closeProductModal(); renderProducts(); showToast('Producto guardado ✓');
 };
 
