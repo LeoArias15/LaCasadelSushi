@@ -621,6 +621,54 @@ body{
 .cart-rewards-btn:hover{background:var(--gold-light);}
 .applied-reward-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gold-light);border:1px solid var(--gold);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--gold);margin-right:6px;margin-bottom:4px;}
 .applied-reward-remove{cursor:pointer;font-size:14px;color:var(--gold);border:none;background:none;padding:0;}
+
+/* ── ORDER HISTORY EXPANDABLE ── */
+.order-history-item{
+  border:1px solid var(--border);border-radius:var(--r);
+  margin-bottom:10px;overflow:hidden;cursor:pointer;
+  transition:border-color 0.2s;
+}
+.order-history-item:hover{border-color:var(--border-strong);}
+.order-hist-header{padding:14px;}
+.order-hist-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.order-hist-num{font-weight:500;font-size:14px;}
+.order-hist-status{font-size:12px;padding:3px 10px;border-radius:12px;}
+.status-delivered{background:#d1fae5;color:#065f46;}
+.status-pending{background:#fef3c7;color:#92400e;}
+.status-preparing{background:#dbeafe;color:#1e40af;}
+.status-cancelled{background:#fee2e2;color:#991b1b;}
+.order-hist-date{font-size:12px;color:var(--ink-muted);}
+.order-hist-total{font-family:var(--ff-display);font-size:16px;margin-top:4px;}
+.order-hist-arrow{
+  font-size:14px;color:var(--ink-muted);
+  transition:transform 0.25s;display:inline-block;
+}
+.order-history-item.expanded .order-hist-arrow{transform:rotate(90deg);}
+.order-hist-detail{
+  display:none;border-top:1px solid var(--border);
+  background:var(--paper-warm);padding:14px;
+}
+.order-history-item.expanded .order-hist-detail{display:block;}
+.order-hist-item-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.order-hist-item-row:last-child{border-bottom:none;}
+.order-hist-item-name{color:var(--ink);flex:1;}
+.order-hist-item-notes{font-size:11px;color:var(--ink-muted);}
+.order-hist-item-qty{color:var(--ink-muted);margin:0 12px;}
+.order-hist-item-price{font-family:var(--ff-display);font-size:14px;}
+.order-hist-summary{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:12px;padding-top:10px;border-top:1px solid var(--border);
+}
+.order-hist-address{font-size:12px;color:var(--ink-muted);margin-top:8px;}
+.btn-reorder{
+  background:var(--ink);color:#fff;border:none;border-radius:10px;
+  padding:8px 16px;font-size:13px;font-family:var(--ff);font-weight:500;
+  cursor:pointer;transition:all 0.2s;
+}
+.btn-reorder:hover{background:var(--red);}
 </style>
 </head>
 <body>
@@ -1510,10 +1558,7 @@ async function placeOrder() {
   const zoneExtra = colonia ? (state.settings?.delivery_per_zone_minutes || 10) : 0;
   const estimatedMin = base + extra + zoneExtra;
 
-  const orderNum = 'SUH-' + String(Math.floor(Math.random() * 9000) + 1000);
-
   const orderData = {
-    order_number: orderNum,
     user_id: state.user?.id || null,
     guest_name: !state.user ? document.getElementById('checkout-name').value : null,
     guest_phone: !state.user ? document.getElementById('checkout-phone').value : null,
@@ -1557,14 +1602,15 @@ async function placeOrder() {
   // Show confirmation
   document.getElementById('cart-step-2').classList.add('hidden');
   document.getElementById('cart-step-3').classList.remove('hidden');
-  document.getElementById('confirm-number').textContent = orderNum;
+  document.getElementById('confirm-number').textContent = order.order_number;
   document.getElementById('confirm-time').textContent = estimatedMin + ' min';
 
-  const msg = `Hola! Mi pedido es el ${orderNum}. ¿Cómo va?`;
+  const msg = `Hola! Mi pedido es el ${order.order_number}. ¿Cómo va?`;
   document.getElementById('whatsapp-link').href =
     `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
   state.cart = [];
+  state.appliedRewards = [];
   renderCart();
   renderMenu();
 }
@@ -1628,24 +1674,63 @@ function updateProfileModal() {
   }
 }
 
+
+function toggleOrderDetail(el) {
+  el.classList.toggle('expanded');
+}
+
 async function loadOrderHistory() {
   if (!state.user) return;
-  const { data } = await sb.from('orders').select('*')
-    .eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(5);
+  const { data } = await sb.from('orders').select('*,order_items(product_name,quantity,subtotal,notes)')
+    .eq('user_id', state.user.id).order('created_at', { ascending: false }).limit(10);
   const container = document.getElementById('orders-history');
   if (!data?.length) { container.innerHTML = '<p style="font-size:14px;color:var(--ink-muted)">Aún no tienes pedidos</p>'; return; }
   const statusMap = { pending:'Pendiente',confirmed:'Confirmado',preparing:'Preparando',ready:'Listo',delivering:'En camino',delivered:'Entregado',cancelled:'Cancelado' };
-  const statusClass = { delivered:'status-delivered',pending:'status-pending',preparing:'status-preparing',confirmed:'status-preparing' };
-  container.innerHTML = data.map(o => `
-    <div class="order-history-item">
-      <div class="order-hist-top">
-        <span class="order-hist-num">${o.order_number}</span>
-        <span class="order-hist-status ${statusClass[o.status]||'status-pending'}">${statusMap[o.status]||o.status}</span>
+  const statusClass = { delivered:'status-delivered',pending:'status-pending',preparing:'status-preparing',confirmed:'status-preparing',delivering:'status-preparing',cancelled:'status-cancelled' };
+
+  container.innerHTML = data.map(o => {
+    const items = o.order_items || [];
+    const itemsHtml = items.map(i => `
+      <div class="order-hist-item-row">
+        <div class="order-hist-item-name">
+          ${i.product_name}
+          ${i.notes ? `<div class="order-hist-item-notes">${i.notes}</div>` : ''}
+        </div>
+        <span class="order-hist-item-qty">×${i.quantity}</span>
+        <span class="order-hist-item-price">$${i.subtotal.toFixed(0)}</span>
+      </div>`).join('');
+
+    const paymentLabels = {cash:'Efectivo',transfer:'Transferencia',mercadopago:'Mercado Pago'};
+    const reorderData = encodeURIComponent(JSON.stringify(items.map(i=>({name:i.product_name,price:i.subtotal/i.quantity,qty:i.quantity}))));
+
+    return `
+    <div class="order-history-item" onclick="toggleOrderDetail(this)">
+      <div class="order-hist-header">
+        <div class="order-hist-top">
+          <span class="order-hist-num">${o.order_number}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="order-hist-status ${statusClass[o.status]||'status-pending'}">${statusMap[o.status]||o.status}</span>
+            <span class="order-hist-arrow">›</span>
+          </div>
+        </div>
+        <div class="order-hist-date">${new Date(o.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+        <div class="order-hist-total">$${o.total.toFixed(0)} MXN · ${items.length} producto${items.length!==1?'s':''}</div>
       </div>
-      <div class="order-hist-date">${new Date(o.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</div>
-      <div class="order-hist-total">$${o.total.toFixed(0)} MXN</div>
-    </div>
-  `).join('');
+      <div class="order-hist-detail">
+        ${itemsHtml}
+        <div class="order-hist-summary">
+          <div>
+            <div style="font-size:12px;color:var(--ink-muted)">Pago: ${paymentLabels[o.payment_method]||'Efectivo'}</div>
+            ${o.discount_amount>0?`<div style="font-size:12px;color:var(--gold)">Descuento: -$${o.discount_amount.toFixed(0)}</div>`:''}
+            ${o.points_earned>0?`<div style="font-size:12px;color:var(--gold)">Puntos ganados: +${o.points_earned}</div>`:''}
+          </div>
+          <div style="font-family:var(--ff-display);font-size:20px">$${o.total.toFixed(0)}</div>
+        </div>
+        ${o.address_line?`<div class="order-hist-address">📍 ${o.address_line}${o.address_colonia?', '+o.address_colonia:''}</div>`:''}
+        ${o.notes?`<div class="order-hist-address" style="margin-top:4px">📝 ${o.notes}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function saveAddress() {
