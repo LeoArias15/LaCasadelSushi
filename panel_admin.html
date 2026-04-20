@@ -258,6 +258,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
 .new-order-alert{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:900;background:var(--gold);color:#000;border-radius:12px;padding:14px 24px;font-weight:600;font-size:14px;opacity:0;transition:opacity 0.3s;pointer-events:none;}
 .new-order-alert.v{opacity:1;}
 .hidden{display:none!important;}
+
+.cancel-reason-btn{
+  padding:7px 14px;border-radius:20px;border:1.5px solid var(--border2);
+  background:transparent;color:var(--text2);font-family:var(--ff);font-size:12px;
+  cursor:pointer;transition:all 0.15s;
+}
+.cancel-reason-btn:hover{border-color:var(--red);color:var(--red);}
+.cancel-reason-btn.selected{background:var(--red-bg);border-color:var(--red);color:var(--red);font-weight:500;}
 </style>
 </head>
 <body>
@@ -612,6 +620,37 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
     </div>
   </div>
 </div>
+
+<!-- CANCEL ORDER MODAL -->
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal-box" style="width:480px">
+    <div class="modal-head">
+      <span class="modal-head-title" style="color:var(--red)">Cancelar pedido</span>
+      <button class="modal-close" onclick="closeCancelModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cancel-order-id">
+      <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:var(--r);padding:14px;margin-bottom:20px;font-size:13px;color:var(--red)">
+        ⚠️ Esta acción no se puede deshacer. El cliente verá el motivo de cancelación en su historial de pedidos.
+      </div>
+      <div style="margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2)">Motivo de cancelación</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px" id="cancel-reasons">
+        <button type="button" class="cancel-reason-btn" data-reason="Producto no disponible">Producto no disponible</button>
+        <button type="button" class="cancel-reason-btn" data-reason="Fuera de zona de entrega">Fuera de zona de entrega</button>
+        <button type="button" class="cancel-reason-btn" data-reason="No contestó el teléfono">No contestó el teléfono</button>
+        <button type="button" class="cancel-reason-btn" data-reason="Pedido duplicado">Pedido duplicado</button>
+        <button type="button" class="cancel-reason-btn" data-reason="Cocina cerrada">Cocina cerrada</button>
+        <button type="button" class="cancel-reason-btn" data-reason="Otro">Otro</button>
+      </div>
+      <div style="margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2)">Comentario adicional (opcional)</div>
+      <textarea id="cancel-comment" style="width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;resize:none;height:80px;outline:none" placeholder="Escribe un mensaje para el cliente..."></textarea>
+      <div class="form-row" style="margin-top:16px">
+        <button class="btn-secondary" onclick="closeCancelModal()">Volver</button>
+        <button style="flex:1;padding:10px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-family:var(--ff);font-size:13px;font-weight:600;cursor:pointer" id="btn-confirm-cancel">Confirmar cancelación</button>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- CATEGORY FORM MODAL -->
 <div class="modal-overlay" id="cat-form-modal">
   <div class="modal-box">
@@ -758,8 +797,11 @@ function setupRealtime() {
         renderOrders(); renderDashboard(); updateNewOrdersBadge();
       }
     )
-    .subscribe((status) => {
-      console.log('Realtime status:', status);
+    .subscribe((status, err) => {
+      console.log('Realtime status:', status, err || '');
+      if (status === 'CHANNEL_ERROR') {
+        console.error('Realtime error - falling back to polling');
+      }
     });
 
   // Settings realtime
@@ -769,12 +811,13 @@ function setupRealtime() {
     )
     .subscribe();
 
-  // Fallback: refresh orders every 30 seconds in case realtime drops
+  // Fallback: refresh orders every 10 seconds
   setInterval(async () => {
     await loadOrders();
     renderOrders();
     renderDashboard();
-  }, 30000);
+    updateNewOrdersBadge();
+  }, 10000);
 }
 
 function showNewOrderAlert() {
@@ -931,7 +974,7 @@ function openOrderModal(orderId) {
   };
 
   const cancelBtn = !['delivered','cancelled'].includes(o.status)
-    ? `<button class="btn-status" style="background:var(--red-bg);color:var(--red)" onclick="updateOrderStatus('${o.id}','cancelled')">Cancelar pedido</button>` : '';
+    ? `<button class="btn-status" style="background:var(--red-bg);color:var(--red)" onclick="openCancelModal('${o.id}')">Cancelar pedido</button>` : '';
   const actionBtns = (nextStatuses[o.status]||[]).map(ns =>
     `<button class="btn-status" style="background:${ns.color}22;color:${ns.color}" onclick="updateOrderStatus('${o.id}','${ns.s}')">${ns.label}</button>`
   ).join('');
@@ -1578,6 +1621,62 @@ async function deleteReward(id) {
   state.rewards = state.rewards.filter(r=>r.id!==id);
   renderRewards(); showToast('Recompensa eliminada');
 }
+
+
+// ── CANCEL ORDER MODAL ──
+function openCancelModal(orderId) {
+  document.getElementById('cancel-order-id').value = orderId;
+  document.getElementById('cancel-comment').value = '';
+  // Reset reason buttons
+  document.querySelectorAll('.cancel-reason-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('cancel-modal').classList.add('open');
+}
+
+function closeCancelModal() {
+  document.getElementById('cancel-modal').classList.remove('open');
+}
+
+document.getElementById('cancel-modal').onclick = e => {
+  if (e.target.id === 'cancel-modal') closeCancelModal();
+};
+
+// Reason button selection
+document.getElementById('cancel-reasons').addEventListener('click', e => {
+  const btn = e.target.closest('.cancel-reason-btn');
+  if (!btn) return;
+  document.querySelectorAll('.cancel-reason-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  // Pre-fill comment if empty
+  const comment = document.getElementById('cancel-comment');
+  if (!comment.value) comment.value = btn.dataset.reason;
+});
+
+document.getElementById('btn-confirm-cancel').onclick = async () => {
+  const orderId = document.getElementById('cancel-order-id').value;
+  const selectedReason = document.querySelector('.cancel-reason-btn.selected')?.dataset.reason || '';
+  const comment = document.getElementById('cancel-comment').value.trim();
+  const cancelReason = comment || selectedReason || 'Sin motivo especificado';
+
+  const btn = document.getElementById('btn-confirm-cancel');
+  btn.disabled = true; btn.textContent = 'Cancelando...';
+
+  await sb.from('orders').update({
+    status: 'cancelled',
+    internal_note: cancelReason
+  }).eq('id', orderId);
+
+  const idx = state.orders.findIndex(o => o.id === orderId);
+  if (idx !== -1) {
+    state.orders[idx].status = 'cancelled';
+    state.orders[idx].internal_note = cancelReason;
+  }
+
+  btn.disabled = false; btn.textContent = 'Confirmar cancelación';
+  closeCancelModal();
+  closeOrderModal();
+  renderOrders();
+  showToast('Pedido cancelado');
+};
 
 // ── UTILS ──
 function showToast(msg) {

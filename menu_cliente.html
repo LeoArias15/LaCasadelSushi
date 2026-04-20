@@ -1052,7 +1052,7 @@ async function init() {
     state.user = session.user;
     await loadProfile();
   }
-  await Promise.all([loadSettings(), loadMenu()]);
+  await Promise.all([loadSettings(), loadMenu(), loadRewards()]);
   renderStatus();
   renderPaymentOptions();
   bindEvents();
@@ -1353,17 +1353,18 @@ function renderCart() {
   }
 
   const subtotal = state.cart.reduce((s,i) => s + i.price*i.quantity, 0);
-  const hasDiscount = state.profile?.discount_active;
-  const discPct = state.settings?.discount_percent || 10;
-  const discAmt = hasDiscount ? subtotal * discPct / 100 : 0;
-  const total = subtotal - discAmt;
+  let rewardDiscountAmt = 0;
+  (state.appliedRewards || []).forEach(r => {
+    if (r.reward_type === 'discount_percent') rewardDiscountAmt += subtotal * (r.discount_percent / 100);
+  });
+  const total = Math.max(0, subtotal - rewardDiscountAmt);
 
   document.getElementById('cart-subtotal').textContent = '$' + subtotal.toFixed(0);
   document.getElementById('cart-total-display').textContent = '$' + total.toFixed(0);
   document.getElementById('btn-total-display').textContent = '$' + total.toFixed(0);
-  document.getElementById('discount-banner').classList.toggle('hidden', !hasDiscount);
-  document.getElementById('cart-discount-row').classList.toggle('hidden', !hasDiscount);
-  document.getElementById('cart-discount').textContent = '-$' + discAmt.toFixed(0);
+  document.getElementById('discount-banner').classList.toggle('hidden', rewardDiscountAmt === 0);
+  document.getElementById('cart-discount-row').classList.toggle('hidden', rewardDiscountAmt === 0);
+  document.getElementById('cart-discount').textContent = '-$' + rewardDiscountAmt.toFixed(0);
   document.getElementById('btn-checkout').disabled = isEmpty;
 
   // Float button
@@ -1408,8 +1409,14 @@ function updatePmTotal() {
 
 // ── REWARDS SYSTEM ──
 async function loadRewards() {
-  const { data } = await sb.from('rewards').select('*,products(name,price)').eq('active', true).order('sort_order');
-  state.rewards = data || [];
+  try {
+    const { data, error } = await sb.from('rewards').select('*,products(name,price)').eq('active', true).order('sort_order');
+    if (error) { console.error('loadRewards error:', error); return; }
+    state.rewards = data || [];
+  } catch(e) {
+    console.error('loadRewards exception:', e);
+    state.rewards = [];
+  }
 }
 
 function openRewardsModal() {
@@ -1611,6 +1618,9 @@ async function placeOrder() {
 
   state.cart = [];
   state.appliedRewards = [];
+  // Force hide float button immediately
+  const float = document.getElementById('cart-float');
+  if (float) float.classList.remove('visible');
   renderCart();
   renderMenu();
 }
@@ -1728,6 +1738,14 @@ async function loadOrderHistory() {
         </div>
         ${o.address_line?`<div class="order-hist-address">📍 ${o.address_line}${o.address_colonia?', '+o.address_colonia:''}</div>`:''}
         ${o.notes?`<div class="order-hist-address" style="margin-top:4px">📝 ${o.notes}</div>`:''}
+        ${o.status==='cancelled' && o.internal_note?`
+          <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;color:#991b1b">
+            ❌ <strong>Pedido cancelado:</strong> ${o.internal_note}
+          </div>`:
+        o.status==='cancelled'?`
+          <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;color:#991b1b">
+            ❌ Pedido cancelado por el negocio
+          </div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1862,6 +1880,12 @@ function bindEvents() {
     document.getElementById('cart-step-2').classList.add('hidden');
     document.getElementById('cart-step-3').classList.add('hidden');
     document.getElementById('cart-step-1').classList.remove('hidden');
+    state.cart = [];
+    state.appliedRewards = [];
+    const float = document.getElementById('cart-float');
+    if (float) float.classList.remove('visible');
+    renderCart();
+    renderMenu();
     closeCart();
   };
 
@@ -1917,6 +1941,24 @@ function bindEvents() {
     document.getElementById('cart-step-2').classList.remove('hidden');
     document.getElementById('guest-fields').classList.remove('hidden');
   };
+
+  // Rewards modal
+  const rewardsClose = document.getElementById('rewards-modal-close');
+  if (rewardsClose) rewardsClose.onclick = () => {
+    document.getElementById('rewards-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  };
+  const rewardsOverlay = document.getElementById('rewards-modal');
+  if (rewardsOverlay) rewardsOverlay.onclick = (e) => {
+    if (e.target.id === 'rewards-modal') {
+      rewardsOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  };
+
+  // Cart rewards button
+  const cartRewardsBtn = document.querySelector('.cart-rewards-btn');
+  if (cartRewardsBtn) cartRewardsBtn.onclick = openRewardsModal;
 
   // Update status every minute
   setInterval(renderStatus, 60000);
