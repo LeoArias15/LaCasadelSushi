@@ -1088,6 +1088,26 @@ async function init() {
       if (idx !== -1) { state.products[idx] = payload.new; renderMenu(); }
     }
   ).subscribe();
+
+  // Realtime: profile points update (when order is delivered and trigger fires)
+  if (state.user) {
+    sb.channel('profile-points')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: `id=eq.${state.user.id}`
+      }, (payload) => {
+        if (state.profile) {
+          state.profile.points_total = payload.new.points_total;
+          state.profile.discount_active = payload.new.discount_active;
+          state.profile.orders_count = payload.new.orders_count;
+        }
+        renderLoyalty();
+        updateRewardsButton();
+      })
+      .subscribe();
+  }
 }
 
 async function loadSettings() {
