@@ -1012,14 +1012,6 @@ async function init() {
 
   // Detect password reset redirect from email link
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      // Show reset password form
-      openModal('auth-modal');
-      document.getElementById('auth-login-view').classList.add('hidden');
-      document.getElementById('auth-register-view').classList.add('hidden');
-      document.getElementById('auth-forgot-view').classList.add('hidden');
-      document.getElementById('auth-reset-view').classList.remove('hidden');
-    }
     if (event === 'SIGNED_IN' && session) {
       state.user = session.user;
       await loadProfile();
@@ -1244,8 +1236,9 @@ function renderLoyalty() {
   const pts = points_total || 0;
 
   // Find next reachable reward
-  const nextReward = state.rewards.length
-    ? state.rewards.filter(r => r.points_cost > pts).sort((a,b) => a.points_cost - b.points_cost)[0]
+  const rewards = state.rewards || [];
+  const nextReward = rewards.length
+    ? rewards.filter(r => r.points_cost > pts).sort((a,b) => a.points_cost - b.points_cost)[0]
     : null;
 
   banner.classList.add('visible');
@@ -1708,7 +1701,7 @@ function bindEvents() {
     const btn = document.getElementById('btn-forgot');
     btn.disabled = true; btn.textContent = 'Enviando...';
     const { error } = await sb.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://lacasadelsushi.vercel.app/menu_cliente.html'
+      redirectTo: 'https://lacasadelsushi.vercel.app/reset_password.html'
     });
     btn.disabled = false; btn.textContent = 'Enviar correo de recuperación';
     if (error) { errEl.textContent = error.message; errEl.classList.add('visible'); return; }
