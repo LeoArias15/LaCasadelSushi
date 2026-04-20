@@ -1163,7 +1163,8 @@ function renderLoyalty() {
   const { points_total, loyalty_threshold, discount_active } = state.profile;
   const pts = points_total || 0;
   const threshold = loyalty_threshold || 100;
-    
+  
+  const remaining = Math.max(0, threshold - pts);
   banner.classList.add('visible');
   document.getElementById('loyalty-count').textContent = pts + ' pts';
     document.getElementById('loyalty-sub').textContent = discount_active
