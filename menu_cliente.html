@@ -1421,6 +1421,8 @@ async function loadRewards() {
 
 function openRewardsModal() {
   if (!state.user) { openModal('auth-modal'); return; }
+  if (!state.appliedRewards) state.appliedRewards = [];
+  if (!state.rewards) state.rewards = [];
   const pts = state.profile?.points_total || 0;
   document.getElementById('rewards-pts-display').textContent = pts + ' pts';
   renderRewardsList(pts);
@@ -1431,12 +1433,14 @@ function openRewardsModal() {
 function renderRewardsList(pts) {
   const list = document.getElementById('rewards-list');
   if (!list) return;
-  if (!state.rewards.length) {
+  // Ensure appliedRewards is always an array
+  if (!state.appliedRewards) state.appliedRewards = [];
+  if (!state.rewards || !state.rewards.length) {
     list.innerHTML = '<p style="text-align:center;color:var(--ink-muted);padding:20px">No hay recompensas disponibles aún</p>';
     return;
   }
   list.innerHTML = state.rewards.map(r => {
-    const isApplied = state.appliedRewards.some(a => a.id === r.id);
+    const isApplied = (state.appliedRewards || []).some(a => a.id === r.id);
     const canAfford = pts >= r.points_cost;
     const pct = Math.min(pts / r.points_cost * 100, 100);
     const remaining = r.points_cost - pts;
@@ -1616,11 +1620,36 @@ async function placeOrder() {
   document.getElementById('whatsapp-link').href =
     `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
 
+  // Clear everything immediately so menu is ready for next order
   state.cart = [];
   state.appliedRewards = [];
-  // Force hide float button immediately
+  state.deliveryType = 'asap';
+
+  // Reset form fields
+  ['checkout-address','checkout-colonia','checkout-refs','checkout-name','checkout-phone','checkout-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Re-fill address from profile if available
+  if (state.profile?.address_line) {
+    const a = document.getElementById('checkout-address');
+    const c = document.getElementById('checkout-colonia');
+    const r = document.getElementById('checkout-refs');
+    if (a) a.value = state.profile.address_line;
+    if (c) c.value = state.profile.address_colonia || '';
+    if (r) r.value = state.profile.address_references || '';
+  }
+
+  // Reset delivery options UI
+  document.getElementById('opt-asap')?.classList.add('selected');
+  document.getElementById('opt-scheduled')?.classList.remove('selected');
+  document.getElementById('scheduled-time-group')?.classList.add('hidden');
+
+  // Force hide float button
   const float = document.getElementById('cart-float');
   if (float) float.classList.remove('visible');
+
+  // Re-render menu so product cards show fresh state
   renderCart();
   renderMenu();
 }
@@ -1880,12 +1909,6 @@ function bindEvents() {
     document.getElementById('cart-step-2').classList.add('hidden');
     document.getElementById('cart-step-3').classList.add('hidden');
     document.getElementById('cart-step-1').classList.remove('hidden');
-    state.cart = [];
-    state.appliedRewards = [];
-    const float = document.getElementById('cart-float');
-    if (float) float.classList.remove('visible');
-    renderCart();
-    renderMenu();
     closeCart();
   };
 
