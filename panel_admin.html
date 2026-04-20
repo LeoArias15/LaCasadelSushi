@@ -731,21 +731,50 @@ async function loadClients() {
 
 // ── REALTIME ──
 function setupRealtime() {
-  sb.channel('admin-orders').on('postgres_changes',{event:'*',schema:'public',table:'orders'},
-    async (payload) => {
-      if (payload.eventType === 'INSERT') {
-        const { data } = await sb.from('orders').select('*,order_items(*)').eq('id',payload.new.id).single();
-        if (data) { state.orders.unshift(data); showNewOrderAlert(); playNotificationSound(); }
-      } else if (payload.eventType === 'UPDATE') {
-        const idx = state.orders.findIndex(o => o.id === payload.new.id);
-        if (idx !== -1) state.orders[idx] = {...state.orders[idx],...payload.new};
+  // Orders realtime
+  sb.channel('admin-orders')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'orders'},
+      async (payload) => {
+        const { data } = await sb.from('orders').select('*,order_items(*)').eq('id', payload.new.id).single();
+        if (data) {
+          // Remove duplicate if exists
+          state.orders = state.orders.filter(o => o.id !== data.id);
+          state.orders.unshift(data);
+          showNewOrderAlert();
+          playNotificationSound();
+        }
+        renderOrders(); renderDashboard(); updateNewOrdersBadge();
       }
-      renderOrders(); renderDashboard(); updateNewOrdersBadge();
-    }
-  ).subscribe();
-  sb.channel('admin-settings').on('postgres_changes',{event:'UPDATE',schema:'public',table:'settings'},
-    (payload) => { state.settings = payload.new; updateStatusToggles(); updateStatusBar(); }
-  ).subscribe();
+    )
+    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'orders'},
+      async (payload) => {
+        // Re-fetch with items to get full data
+        const { data } = await sb.from('orders').select('*,order_items(*)').eq('id', payload.new.id).single();
+        if (data) {
+          const idx = state.orders.findIndex(o => o.id === data.id);
+          if (idx !== -1) state.orders[idx] = data;
+          else state.orders.unshift(data);
+        }
+        renderOrders(); renderDashboard(); updateNewOrdersBadge();
+      }
+    )
+    .subscribe((status) => {
+      console.log('Realtime status:', status);
+    });
+
+  // Settings realtime
+  sb.channel('admin-settings')
+    .on('postgres_changes', {event:'UPDATE', schema:'public', table:'settings'},
+      (payload) => { state.settings = payload.new; updateStatusToggles(); updateStatusBar(); }
+    )
+    .subscribe();
+
+  // Fallback: refresh orders every 30 seconds in case realtime drops
+  setInterval(async () => {
+    await loadOrders();
+    renderOrders();
+    renderDashboard();
+  }, 30000);
 }
 
 function showNewOrderAlert() {
