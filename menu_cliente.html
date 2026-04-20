@@ -16,6 +16,7 @@
   --paper: #faf8f5;
   --paper-warm: #f3efe8;
   --paper-card: #ffffff;
+  --gold-light: #f5edd6;
   --red: #c0392b;
   --red-soft: #e8d5d3;
   --gold: #b8962e;
@@ -62,9 +63,10 @@ body{
 .logo{
   font-family:var(--ff-display);
   font-size:22px;font-weight:300;letter-spacing:0.04em;
-  color:var(--ink);text-decoration:none;
+  color:var(--ink) !important;text-decoration:none !important;
+  -webkit-text-fill-color:var(--ink);
 }
-.logo span{color:var(--red);}
+.logo span{color:var(--red) !important;-webkit-text-fill-color:var(--red);}
 .header-actions{display:flex;gap:12px;align-items:center;}
 .btn-icon{
   width:38px;height:38px;border-radius:50%;
@@ -94,23 +96,28 @@ body{
 }
 .hero::before{
   content:'';position:absolute;inset:0;
-  background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  pointer-events:none;
 }
 .hero-eyebrow{
   font-size:11px;letter-spacing:0.2em;text-transform:uppercase;
   color:var(--gold);margin-bottom:12px;font-family:var(--ff-body);
+  position:relative;z-index:1;
 }
 .hero h1{
   font-family:var(--ff-display);
-  font-size:42px;font-weight:300;line-height:1.1;
+  font-size:38px;font-weight:300;line-height:1.1;
   margin-bottom:8px;
+  position:relative;z-index:1;
+  color:#fff;
 }
 .hero h1 em{font-style:italic;color:var(--gold);}
-.hero-sub{color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:24px;}
+.hero-sub{color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:24px;position:relative;z-index:1;}
 .status-pill{
   display:inline-flex;align-items:center;gap:8px;
   background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
   border-radius:24px;padding:8px 16px;font-size:13px;
+  position:relative;z-index:1;
 }
 .status-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
@@ -119,64 +126,82 @@ body{
 /* ── CLOSED OVERLAY ── */
 .closed-banner{
   background:var(--ink);color:#fff;
-  text-align:center;padding:16px 20px;
-  font-family:var(--ff-display);font-size:16px;
+  text-align:center;padding:12px 20px;
+  font-size:14px;
   display:none;
+  position:relative;z-index:1;
 }
 .closed-banner.visible{display:block;}
 
 /* ── AUTH MODAL ── */
 .modal-overlay{
   position:fixed;inset:0;z-index:200;
-  background:rgba(0,0,0,0.5);
+  background:rgba(10,10,10,0.75);
   display:flex;align-items:flex-end;justify-content:center;
-  opacity:0;pointer-events:none;transition:opacity 0.3s;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.35s ease;
 }
 .modal-overlay.open{opacity:1;pointer-events:all;}
 .modal-sheet{
-  background:var(--paper-card);border-radius:20px 20px 0 0;
-  width:100%;max-width:480px;padding:32px 24px 48px;
+  width:100%;max-width:480px;
+  padding:32px 24px 52px;
+  background:rgba(255,255,255,0.85);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-radius:28px 28px 0 0;
+  border-top:1px solid rgba(255,255,255,0.6);
   pointer-events:none;
-  transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  transform:translateY(100%);
+  transition:transform 0.45s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.18);
 }
 .modal-overlay.open .modal-sheet{
   pointer-events:all;
+  transform:translateY(0);
 }
 .modal-overlay.open .modal-sheet{transform:translateY(0);}
 .modal-handle{
-  width:40px;height:4px;border-radius:2px;background:var(--border-strong);
+  width:44px;height:5px;border-radius:3px;
+  background:rgba(0,0,0,0.15);
   margin:0 auto 28px;
 }
 .modal-title{
   font-family:var(--ff-display);font-size:28px;font-weight:300;
   margin-bottom:6px;
 }
-.modal-sub{color:var(--ink-muted);font-size:14px;margin-bottom:28px;}
+.modal-sub{color:rgba(0,0,0,0.5);font-size:14px;margin-bottom:28px;line-height:1.6;}
 .form-group{margin-bottom:16px;}
-.form-label{font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:6px;display:block;}
+.form-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(0,0,0,0.45);margin-bottom:6px;display:block;font-weight:500;}
 .form-input{
   width:100%;padding:14px 16px;
-  border:1px solid var(--border-strong);border-radius:var(--r);
+  border:1px solid rgba(0,0,0,0.12);border-radius:14px;
   font-family:var(--ff-body);font-size:15px;color:var(--ink);
-  background:var(--paper);transition:border-color 0.2s,box-shadow 0.2s;outline:none;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:border-color 0.2s,box-shadow 0.2s,background 0.2s;outline:none;
 }
-.form-input:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(0,0,0,0.06);}
+.form-input:focus{
+  border-color:rgba(0,0,0,0.3);
+  background:rgba(255,255,255,0.95);
+  box-shadow:0 0 0 3px rgba(0,0,0,0.06);
+}
 .btn-primary{
-  width:100%;padding:16px;border:none;border-radius:var(--r);
+  width:100%;padding:16px;border:none;border-radius:14px;
   background:var(--ink);color:#fff;font-family:var(--ff-body);
   font-size:15px;font-weight:500;cursor:pointer;
   transition:all 0.2s;letter-spacing:0.02em;
+  box-shadow:0 4px 16px rgba(0,0,0,0.18);
 }
-.btn-primary:hover{background:var(--ink-soft);transform:translateY(-1px);}
+.btn-primary:hover{background:var(--ink-soft);transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,0,0,0.22);}
 .btn-primary:active{transform:translateY(0);}
-.btn-primary:disabled{background:var(--ink-faint);cursor:not-allowed;transform:none;}
+.btn-primary:disabled{background:var(--ink-faint);cursor:not-allowed;transform:none;box-shadow:none;}
 .auth-toggle{
-  text-align:center;margin-top:20px;font-size:14px;color:var(--ink-muted);
+  text-align:center;margin-top:20px;font-size:14px;color:rgba(0,0,0,0.5);
 }
-.auth-toggle a{color:var(--ink);font-weight:500;cursor:pointer;text-decoration:underline;}
+.auth-toggle a{color:var(--ink);font-weight:600;cursor:pointer;text-decoration:underline;}
 .auth-error{
-  background:var(--red-soft);border:1px solid #e5b4b0;
-  border-radius:8px;padding:12px;font-size:13px;color:var(--red);
+  background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.25);
+  border-radius:10px;padding:12px;font-size:13px;color:var(--red);
   margin-bottom:16px;display:none;
 }
 .auth-error.visible{display:block;}
@@ -198,9 +223,10 @@ body{
 .cat-btn{
   padding:8px 16px;border-radius:24px;border:1px solid var(--border-strong);
   background:transparent;font-family:var(--ff-body);font-size:13px;
-  color:var(--ink-muted);cursor:pointer;transition:all 0.2s;white-space:nowrap;
+  color:var(--ink-muted) !important;cursor:pointer;transition:all 0.2s;white-space:nowrap;
+  text-decoration:none;
 }
-.cat-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.cat-btn.active{background:var(--ink);color:#fff !important;border-color:var(--ink);}
 
 /* ── MENU GRID ── */
 .menu-section{max-width:480px;margin:0 auto;padding:0 16px;}
@@ -275,7 +301,7 @@ body{
 .qty-num{font-weight:500;min-width:20px;text-align:center;font-size:15px;}
 
 /* ── PRODUCT DETAIL MODAL ── */
-.product-modal .modal-sheet{padding:0 0 48px;pointer-events:none;}
+.product-modal .modal-sheet{padding:0 0 48px;pointer-events:none;background:rgba(255,255,255,0.92);}
 .product-modal.open .modal-sheet{pointer-events:all;}
 .product-modal-img{
   width:100%;height:220px;
@@ -318,8 +344,8 @@ body{
   pointer-events:all;
 }
 .cart-backdrop{
-  position:absolute;inset:0;background:rgba(0,0,0,0.5);
-  opacity:0;pointer-events:none;transition:opacity 0.3s;
+  position:absolute;inset:0;background:rgba(10,10,10,0.75);
+  opacity:0;pointer-events:none;transition:opacity 0.35s;
 }
 .cart-drawer.open .cart-backdrop{
   opacity:1;pointer-events:all;
@@ -327,11 +353,16 @@ body{
 .cart-panel{
   position:absolute;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
   width:100%;max-width:480px;
-  background:var(--paper-card);border-radius:20px 20px 0 0;
+  background:rgba(250,248,245,0.96);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-radius:28px 28px 0 0;
+  border-top:1px solid rgba(255,255,255,0.7);
   height:92vh;max-height:92vh;display:flex;flex-direction:column;
   overflow:hidden;
   pointer-events:none;
-  transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:0 -8px 40px rgba(0,0,0,0.15);
+  transition:transform 0.45s cubic-bezier(0.16,1,0.3,1);
 }
 .cart-drawer.open .cart-panel{
   pointer-events:all;
@@ -516,7 +547,7 @@ body{
   box-shadow:var(--shadow-float);
 }
 .toast.visible{opacity:1;}
-.section-spacer{height:120px;}
+.section-spacer{height:100px;}
 
 /* Steps flex layout */
 #cart-step-0,#cart-step-1,#cart-step-2,#cart-step-3{
@@ -700,7 +731,37 @@ body{
         <input class="form-input" id="login-password" type="password" placeholder="••••••••">
       </div>
       <button class="btn-primary" id="btn-login">Iniciar sesión</button>
+      <p style="text-align:center;margin-top:12px;font-size:13px;color:var(--ink-muted)"><a id="show-forgot" style="color:var(--ink);cursor:pointer;text-decoration:underline">¿Olvidaste tu contraseña?</a></p>
       <p class="auth-toggle">¿No tienes cuenta? <a id="show-register">Regístrate aquí</a></p>
+    </div>
+
+    <div id="auth-forgot-view" class="hidden">
+      <h2 class="modal-title">Recuperar contraseña</h2>
+      <p class="modal-sub">Te enviaremos un correo con un enlace para restablecer tu contraseña.</p>
+      <div class="auth-error" id="auth-error-forgot"></div>
+      <div id="auth-forgot-success" style="display:none;background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px;font-size:13px;color:#065f46;margin-bottom:16px">
+        ✓ Correo enviado. Revisa tu bandeja de entrada.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Correo electrónico</label>
+        <input class="form-input" id="forgot-email" type="email" placeholder="tu@email.com">
+      </div>
+      <button class="btn-primary" id="btn-forgot">Enviar correo de recuperación</button>
+      <p class="auth-toggle"><a id="show-login-from-forgot" style="cursor:pointer">← Volver al inicio de sesión</a></p>
+    </div>
+    <div id="auth-reset-view" class="hidden">
+      <h2 class="modal-title">Nueva contraseña</h2>
+      <p class="modal-sub">Ingresa tu nueva contraseña.</p>
+      <div class="auth-error" id="auth-error-reset"></div>
+      <div class="form-group">
+        <label class="form-label">Nueva contraseña</label>
+        <input class="form-input" id="reset-password" type="password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar contraseña</label>
+        <input class="form-input" id="reset-password-confirm" type="password" placeholder="Repite tu contraseña">
+      </div>
+      <button class="btn-primary" id="btn-reset">Guardar nueva contraseña</button>
     </div>
     <div id="auth-register-view" class="hidden">
       <h2 class="modal-title">Crear cuenta</h2>
@@ -948,19 +1009,32 @@ async function init() {
   renderPaymentOptions();
   bindEvents();
 
+
+  // Detect password reset redirect from email link
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (session) {
+    if (event === 'PASSWORD_RECOVERY') {
+      // Show reset password form
+      openModal('auth-modal');
+      document.getElementById('auth-login-view').classList.add('hidden');
+      document.getElementById('auth-register-view').classList.add('hidden');
+      document.getElementById('auth-forgot-view').classList.add('hidden');
+      document.getElementById('auth-reset-view').classList.remove('hidden');
+    }
+    if (event === 'SIGNED_IN' && session) {
       state.user = session.user;
       await loadProfile();
       renderLoyalty();
       updateProfileModal();
-    } else {
+    }
+    if (event === 'SIGNED_OUT') {
       state.user = null;
       state.profile = null;
       renderLoyalty();
       updateProfileModal();
     }
   });
+
+
 
   // Realtime: settings update
   sb.channel('settings').on('postgres_changes',{event:'UPDATE',schema:'public',table:'settings'},
@@ -1028,7 +1102,9 @@ function renderStatus() {
   const [ch, cm] = s.close_time.split(':').map(Number);
   const openMin = oh*60+om, closeMin = ch*60+cm;
   const nowMin = now.getHours()*60+now.getMinutes();
-  const isOpen = s.is_open && !s.pause_orders && nowMin >= openMin && nowMin <= closeMin;
+  const dayOfWeek = now.getDay();
+  const openDays = s.open_days ? s.open_days : [0,1,2,3,4,5,6];
+  const isOpen = s.is_open && !s.pause_orders && nowMin >= openMin && nowMin <= closeMin && openDays.includes(dayOfWeek);
 
   document.getElementById('status-dot').className = 'status-dot' + (isOpen ? '' : ' closed');
   document.getElementById('status-text').textContent = isOpen
@@ -1163,8 +1239,7 @@ function renderLoyalty() {
   const { points_total, loyalty_threshold, discount_active } = state.profile;
   const pts = points_total || 0;
   const threshold = loyalty_threshold || 100;
-  
-  const remaining = Math.max(0, threshold - pts);
+    
   banner.classList.add('visible');
   document.getElementById('loyalty-count').textContent = pts + ' pts';
     document.getElementById('loyalty-sub').textContent = discount_active
@@ -1604,6 +1679,51 @@ function bindEvents() {
   // Header
   document.getElementById('btn-profile').onclick = () => { updateProfileModal(); openModal('profile-modal'); };
   document.getElementById('cart-float').onclick = openCart;
+
+
+  // Forgot password
+  document.getElementById('show-forgot').onclick = () => {
+    document.getElementById('auth-login-view').classList.add('hidden');
+    document.getElementById('auth-forgot-view').classList.remove('hidden');
+    document.getElementById('auth-error-forgot').classList.remove('visible');
+    document.getElementById('auth-forgot-success').style.display = 'none';
+  };
+  document.getElementById('show-login-from-forgot').onclick = () => {
+    document.getElementById('auth-forgot-view').classList.add('hidden');
+    document.getElementById('auth-login-view').classList.remove('hidden');
+  };
+  document.getElementById('btn-forgot').onclick = async () => {
+    const email = document.getElementById('forgot-email').value.trim();
+    const errEl = document.getElementById('auth-error-forgot');
+    errEl.classList.remove('visible');
+    if (!email) { errEl.textContent = 'Ingresa tu correo'; errEl.classList.add('visible'); return; }
+    const btn = document.getElementById('btn-forgot');
+    btn.disabled = true; btn.textContent = 'Enviando...';
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://lacasadelsushi.vercel.app/menu_cliente.html'
+    });
+    btn.disabled = false; btn.textContent = 'Enviar correo de recuperación';
+    if (error) { errEl.textContent = error.message; errEl.classList.add('visible'); return; }
+    document.getElementById('auth-forgot-success').style.display = 'block';
+    document.getElementById('btn-forgot').style.display = 'none';
+  };
+
+  // Reset password
+  document.getElementById('btn-reset').onclick = async () => {
+    const pass = document.getElementById('reset-password').value;
+    const confirm = document.getElementById('reset-password-confirm').value;
+    const errEl = document.getElementById('auth-error-reset');
+    errEl.classList.remove('visible');
+    if (pass.length < 6) { errEl.textContent = 'Mínimo 6 caracteres'; errEl.classList.add('visible'); return; }
+    if (pass !== confirm) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.classList.add('visible'); return; }
+    const btn = document.getElementById('btn-reset');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    const { error } = await sb.auth.updateUser({ password: pass });
+    btn.disabled = false; btn.textContent = 'Guardar nueva contraseña';
+    if (error) { errEl.textContent = error.message; errEl.classList.add('visible'); return; }
+    closeModal('auth-modal');
+    showToast('¡Contraseña actualizada! Ya puedes iniciar sesión 🎋');
+  };
 
   // Auth modal
   document.getElementById('auth-modal').addEventListener('click', e => { if(e.target.id==='auth-modal') closeModal('auth-modal'); });
