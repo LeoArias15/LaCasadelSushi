@@ -136,7 +136,11 @@ body{
 .modal-sheet{
   background:var(--paper-card);border-radius:20px 20px 0 0;
   width:100%;max-width:480px;padding:32px 24px 48px;
+  pointer-events:none;
   transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.modal-overlay.open .modal-sheet{
+  pointer-events:all;
 }
 .modal-overlay.open .modal-sheet{transform:translateY(0);}
 .modal-handle{
@@ -271,7 +275,8 @@ body{
 .qty-num{font-weight:500;min-width:20px;text-align:center;font-size:15px;}
 
 /* ── PRODUCT DETAIL MODAL ── */
-.product-modal .modal-sheet{padding:0 0 48px;}
+.product-modal .modal-sheet{padding:0 0 48px;pointer-events:none;}
+.product-modal.open .modal-sheet{pointer-events:all;}
 .product-modal-img{
   width:100%;height:220px;
   background:var(--paper-warm);
@@ -325,7 +330,11 @@ body{
   background:var(--paper-card);border-radius:20px 20px 0 0;
   height:92vh;max-height:92vh;display:flex;flex-direction:column;
   overflow:hidden;
+  pointer-events:none;
   transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.cart-drawer.open .cart-panel{
+  pointer-events:all;
 }
 .cart-drawer.open .cart-panel{transform:translateX(-50%) translateY(0);}
 .cart-header{
@@ -509,14 +518,29 @@ body{
 .toast.visible{opacity:1;}
 .section-spacer{height:120px;}
 
+/* Steps flex layout */
 #cart-step-0,#cart-step-1,#cart-step-2,#cart-step-3{
   display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;
 }
 #cart-step-0.hidden,#cart-step-1.hidden,#cart-step-2.hidden,#cart-step-3.hidden{
   display:none;
 }
+/* CRITICAL: ningún overlay cierra bloquea clicks */
+.modal-overlay:not(.open){pointer-events:none !important;}
 
-/* ── REWARDS ── */
+.auth-choice-wrap{padding:32px 24px;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;}
+.auth-choice-title{font-family:var(--ff-display);font-size:26px;font-weight:300;margin-bottom:6px;}
+.auth-choice-sub{color:var(--ink-muted);font-size:14px;margin-bottom:28px;line-height:1.6;}
+.auth-choice-card{border:1.5px solid var(--border-strong);border-radius:14px;padding:20px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:16px;}
+.auth-choice-card:hover{border-color:var(--ink);}
+.auth-choice-card.recommended{border-color:var(--ink);background:var(--paper-warm);}
+.auth-choice-icon{font-size:28px;flex-shrink:0;}
+.auth-choice-label{font-size:15px;font-weight:500;margin-bottom:3px;}
+.auth-choice-desc{font-size:12px;color:var(--ink-muted);line-height:1.5;}
+.auth-choice-badge{margin-left:auto;font-size:10px;padding:3px 9px;border-radius:10px;background:var(--gold-light);color:var(--gold);font-weight:500;white-space:nowrap;flex-shrink:0;}
+.auth-choice-divider{text-align:center;font-size:12px;color:var(--ink-faint);margin:4px 0 12px;}
+
+/* ── REWARDS MODAL ── */
 .rewards-modal-overlay{
   position:fixed;inset:0;z-index:400;
   background:rgba(0,0,0,0.5);
@@ -529,8 +553,9 @@ body{
   width:100%;max-width:480px;
   max-height:85vh;display:flex;flex-direction:column;
   transform:translateY(100%);transition:transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  pointer-events:none;
 }
-.rewards-modal-overlay.open .rewards-sheet{transform:translateY(0);}
+.rewards-modal-overlay.open .rewards-sheet{transform:translateY(0);pointer-events:all;}
 .rewards-sheet-header{
   padding:20px 24px 16px;border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
@@ -544,10 +569,7 @@ body{
 .rewards-points-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .rewards-points-label{font-size:12px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.06em;}
 .rewards-points-value{font-family:var(--ff-display);font-size:28px;font-weight:400;color:var(--gold);}
-.reward-card{
-  border:1.5px solid var(--border-strong);border-radius:14px;
-  padding:16px;margin-bottom:10px;transition:all 0.2s;
-}
+.reward-card{border:1.5px solid var(--border-strong);border-radius:14px;padding:16px;margin-bottom:10px;transition:all 0.2s;}
 .reward-card.can-redeem{cursor:pointer;border-color:var(--gold);}
 .reward-card.can-redeem:hover{background:var(--gold-light);transform:translateY(-1px);}
 .reward-card.redeemed{border-color:var(--gold);background:var(--gold-light);}
@@ -558,48 +580,16 @@ body{
 .reward-card-desc{font-size:12px;color:var(--ink-muted);margin-bottom:10px;}
 .reward-card-bottom{display:flex;align-items:center;justify-content:space-between;}
 .reward-progress-bar{flex:1;height:4px;background:var(--border-strong);border-radius:2px;margin-right:12px;}
-.reward-progress-fill{height:100%;background:var(--gold);border-radius:2px;transition:width 0.5s;}
+.reward-progress-fill{height:100%;background:var(--gold);border-radius:2px;}
 .reward-progress-text{font-size:11px;color:var(--ink-muted);white-space:nowrap;}
-.btn-redeem{
-  padding:8px 16px;background:var(--ink);color:#fff;border:none;
-  border-radius:10px;font-family:var(--ff);font-size:13px;font-weight:500;
-  cursor:pointer;transition:all 0.2s;
-}
-.btn-redeem:hover{background:var(--gold);color:#000;}
-.btn-redeem.active{background:var(--red);color:#fff;}
-.redeemed-badge{
-  background:var(--gold-light);color:var(--gold);border:1px solid var(--gold);
-  border-radius:10px;padding:5px 12px;font-size:12px;font-weight:500;
-}
-.cart-rewards-section{
-  padding:12px 24px;border-top:1px solid var(--border);
-  background:var(--paper-warm);flex-shrink:0;
-}
-.cart-rewards-btn{
-  display:flex;align-items:center;justify-content:space-between;
-  background:transparent;border:1.5px solid var(--gold);border-radius:var(--r);
-  padding:12px 16px;width:100%;cursor:pointer;transition:all 0.2s;
-  font-family:var(--ff);
-}
+.btn-redeem{padding:8px 16px;background:var(--ink);color:#fff;border:none;border-radius:10px;font-family:var(--ff);font-size:13px;font-weight:500;cursor:pointer;}
+.btn-redeem.active{background:var(--red);}
+.redeemed-badge{background:var(--gold-light);color:var(--gold);border:1px solid var(--gold);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:500;}
+.cart-rewards-section{padding:12px 24px;border-top:1px solid var(--border);background:var(--paper-warm);flex-shrink:0;}
+.cart-rewards-btn{display:flex;align-items:center;justify-content:space-between;background:transparent;border:1.5px solid var(--gold);border-radius:var(--r);padding:12px 16px;width:100%;cursor:pointer;transition:all 0.2s;font-family:var(--ff);}
 .cart-rewards-btn:hover{background:var(--gold-light);}
-.cart-rewards-btn-left{display:flex;align-items:center;gap:10px;}
-.cart-rewards-btn-icon{font-size:20px;}
-.cart-rewards-btn-label{font-size:14px;font-weight:500;color:var(--ink);}
-.cart-rewards-btn-pts{font-size:12px;color:var(--gold);font-weight:500;}
-.cart-applied-rewards{margin-top:8px;}
-.applied-reward-tag{
-  display:inline-flex;align-items:center;gap:6px;
-  background:var(--gold-light);border:1px solid var(--gold);
-  border-radius:8px;padding:4px 10px;font-size:12px;color:var(--gold);
-  margin-right:6px;margin-bottom:4px;
-}
+.applied-reward-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gold-light);border:1px solid var(--gold);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--gold);margin-right:6px;margin-bottom:4px;}
 .applied-reward-remove{cursor:pointer;font-size:14px;color:var(--gold);border:none;background:none;padding:0;}
-
-/* Ensure no overlay blocks clicks when closed */
-.modal-overlay:not(.open),
-.rewards-modal-overlay:not(.open){
-  pointer-events:none !important;
-}
 </style>
 </head>
 <body>
@@ -610,7 +600,7 @@ body{
 <!-- HEADER -->
 <header class="site-header">
   <div class="header-inner">
-    <a href="#" class="logo"><img id="logo-img" src="logo.png" onerror="this.style.display='none';document.getElementById('logo-text').style.display='block'" style="height:32px;object-fit:contain;vertical-align:middle"><span id="logo-text" style="display:none">La Casa <span style="color:var(--red)">del Sushi</span></span></a>
+    <a href="#" class="logo"><img src="logo.png" onerror="this.style.display='none'" style="height:30px;object-fit:contain;vertical-align:middle"> <span id="logo-text">La Casa <span style="color:var(--red)">del Sushi</span></span></a>
     <div class="header-actions">
       <button class="btn-icon" id="btn-profile" title="Mi cuenta">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
@@ -662,6 +652,27 @@ body{
   <div id="menu-content"></div>
   <div class="section-spacer"></div>
 </main>
+
+
+<!-- REWARDS MODAL -->
+<div class="rewards-modal-overlay" id="rewards-modal">
+  <div class="rewards-sheet">
+    <div class="rewards-sheet-header">
+      <span class="rewards-sheet-title">Tus recompensas</span>
+      <button class="btn-close" id="rewards-modal-close">✕</button>
+    </div>
+    <div class="rewards-sheet-body">
+      <div class="rewards-points-bar">
+        <div class="rewards-points-top">
+          <span class="rewards-points-label">Puntos disponibles</span>
+          <span class="rewards-points-value" id="rewards-pts-display">0</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink-muted)">Acumulas puntos con cada compra según el producto</div>
+      </div>
+      <div id="rewards-list"></div>
+    </div>
+  </div>
+</div>
 
 <!-- FLOATING CART BUTTON -->
 <button class="cart-float" id="cart-float" aria-label="Ver carrito">
@@ -780,21 +791,30 @@ body{
       <button class="btn-close" id="cart-close">✕</button>
     </div>
     <!-- CHECKOUT STEPS -->
+    <!-- STEP 0: AUTH CHOICE -->
+    <div id="cart-step-0" class="hidden">
+      <div class="auth-choice-wrap">
+        <h2 class="auth-choice-title">¿Cómo quieres continuar?</h2>
+        <p class="auth-choice-sub">Con una cuenta acumulas puntos y guardamos tu dirección.</p>
+        <div class="auth-choice-card recommended" id="choice-login">
+          <span class="auth-choice-icon">👤</span>
+          <div><div class="auth-choice-label">Iniciar sesión</div><div class="auth-choice-desc">Accede, acumula puntos y usa tu dirección guardada</div></div>
+          <span class="auth-choice-badge">Recomendado</span>
+        </div>
+        <div class="auth-choice-card" id="choice-register">
+          <span class="auth-choice-icon">✨</span>
+          <div><div class="auth-choice-label">Crear cuenta nueva</div><div class="auth-choice-desc">Regístrate gratis y empieza a acumular puntos</div></div>
+        </div>
+        <div class="auth-choice-divider">o continúa sin cuenta</div>
+        <div class="auth-choice-card" id="choice-guest">
+          <span class="auth-choice-icon">🥢</span>
+          <div><div class="auth-choice-label">Pedir como invitado</div><div class="auth-choice-desc">Sin registro, solo nombre y teléfono</div></div>
+        </div>
+      </div>
+    </div>
+
     <div id="cart-step-1">
       <div class="cart-body" id="cart-body"></div>
-      <div class="cart-rewards-section" id="cart-rewards-section" style="display:none">
-        <button class="cart-rewards-btn" id="btn-open-rewards">
-          <div class="cart-rewards-btn-left">
-            <span class="cart-rewards-btn-icon">🏆</span>
-            <div>
-              <div class="cart-rewards-btn-label">Canjear puntos</div>
-              <div class="cart-rewards-btn-pts" id="cart-rewards-pts-label">Tienes 0 puntos</div>
-            </div>
-          </div>
-          <span style="color:var(--ink-muted);font-size:18px">›</span>
-        </button>
-        <div class="cart-applied-rewards" id="cart-applied-rewards"></div>
-      </div>
       <div class="cart-footer">
         <div class="discount-badge hidden" id="discount-banner">
           🎉 ¡Tienes un descuento activo! Se aplicará automáticamente
@@ -886,27 +906,6 @@ body{
   </div>
 </div>
 
-
-<!-- REWARDS MODAL -->
-<div class="rewards-modal-overlay" id="rewards-modal">
-  <div class="rewards-sheet">
-    <div class="rewards-sheet-header">
-      <span class="rewards-sheet-title">Tus recompensas</span>
-      <button class="btn-close" id="rewards-modal-close">✕</button>
-    </div>
-    <div class="rewards-sheet-body">
-      <div class="rewards-points-bar">
-        <div class="rewards-points-top">
-          <span class="rewards-points-label">Puntos disponibles</span>
-          <span class="rewards-points-value" id="rewards-pts-display">0</span>
-        </div>
-        <div style="font-size:12px;color:var(--ink-muted)">Acumulas puntos con cada compra según el producto</div>
-      </div>
-      <div id="rewards-list"></div>
-    </div>
-  </div>
-</div>
-
 <script>
 // ═══════════════════════════════════════════════
 // CONFIGURACIÓN — Reemplaza con tus datos reales
@@ -927,8 +926,6 @@ let state = {
   settings: null,
   categories: [],
   products: [],
-  rewards: [],
-  appliedRewards: [],
   cart: [],
   currentProduct: null,
   pmQty: 1,
@@ -946,7 +943,7 @@ async function init() {
     state.user = session.user;
     await loadProfile();
   }
-  await Promise.all([loadSettings(), loadMenu(), loadRewards()]);
+  await Promise.all([loadSettings(), loadMenu()]);
   renderStatus();
   renderPaymentOptions();
   bindEvents();
@@ -1031,9 +1028,7 @@ function renderStatus() {
   const [ch, cm] = s.close_time.split(':').map(Number);
   const openMin = oh*60+om, closeMin = ch*60+cm;
   const nowMin = now.getHours()*60+now.getMinutes();
-  const dayOfWeek = now.getDay();
-  const openDays = s.open_days || [1,2,3,4,5,6];
-  const isOpen = s.is_open && !s.pause_orders && nowMin >= openMin && nowMin <= closeMin && openDays.includes(dayOfWeek);
+  const isOpen = s.is_open && !s.pause_orders && nowMin >= openMin && nowMin <= closeMin;
 
   document.getElementById('status-dot').className = 'status-dot' + (isOpen ? '' : ' closed');
   document.getElementById('status-text').textContent = isOpen
@@ -1166,17 +1161,12 @@ function renderLoyalty() {
   const banner = document.getElementById('loyalty-banner');
   if (!state.profile) { banner.classList.remove('visible'); return; }
   const { points_total, loyalty_threshold, discount_active } = state.profile;
-  const threshold = state.rewards.length > 0 ? Math.max(...state.rewards.map(r=>r.points_cost)) : (loyalty_threshold || 100);
   const pts = points_total || 0;
-  const nextReward = state.rewards.find(r => r.points_cost > pts);
-  const target = nextReward ? nextReward.points_cost : threshold;
-  const pct = Math.min(pts / target * 100, 100);
-  const remaining = target - pts;
-
-
+  const threshold = loyalty_threshold || 100;
+    
   banner.classList.add('visible');
   document.getElementById('loyalty-count').textContent = pts + ' pts';
-  document.getElementById('loyalty-sub').textContent = discount_active
+    document.getElementById('loyalty-sub').textContent = discount_active
     ? '🎉 ¡Tienes un descuento disponible en este pedido!'
     : `${remaining} pedido${remaining !== 1 ? 's' : ''} más para ganar ${state.settings?.discount_percent || 10}% de descuento`;
 }
@@ -1238,23 +1228,17 @@ function renderCart() {
   }
 
   const subtotal = state.cart.reduce((s,i) => s + i.price*i.quantity, 0);
-  // Apply reward discounts
-  let rewardDiscountAmt = 0;
-  state.appliedRewards.forEach(r => {
-    if (r.reward_type === 'discount_percent') {
-      rewardDiscountAmt += subtotal * (r.discount_percent / 100);
-    }
-  });
-  const total = Math.max(0, subtotal - rewardDiscountAmt);
+  const hasDiscount = state.profile?.discount_active;
+  const discPct = state.settings?.discount_percent || 10;
+  const discAmt = hasDiscount ? subtotal * discPct / 100 : 0;
+  const total = subtotal - discAmt;
 
   document.getElementById('cart-subtotal').textContent = '$' + subtotal.toFixed(0);
   document.getElementById('cart-total-display').textContent = '$' + total.toFixed(0);
   document.getElementById('btn-total-display').textContent = '$' + total.toFixed(0);
-  document.getElementById('discount-banner').classList.toggle('hidden', state.appliedRewards.length === 0);
-  document.getElementById('cart-discount-row').classList.toggle('hidden', rewardDiscountAmt === 0);
-  document.getElementById('cart-discount').textContent = '-$' + rewardDiscountAmt.toFixed(0);
-  updateRewardsButton();
-  renderAppliedRewards();
+  document.getElementById('discount-banner').classList.toggle('hidden', !hasDiscount);
+  document.getElementById('cart-discount-row').classList.toggle('hidden', !hasDiscount);
+  document.getElementById('cart-discount').textContent = '-$' + discAmt.toFixed(0);
   document.getElementById('btn-checkout').disabled = isEmpty;
 
   // Float button
@@ -1298,18 +1282,25 @@ function updatePmTotal() {
 
 
 // ── REWARDS SYSTEM ──
+async function loadRewards() {
+  const { data } = await sb.from('rewards').select('*,products(name,price)').eq('active', true).order('sort_order');
+  state.rewards = data || [];
+}
+
 function openRewardsModal() {
   if (!state.user) { openModal('auth-modal'); return; }
   const pts = state.profile?.points_total || 0;
   document.getElementById('rewards-pts-display').textContent = pts + ' pts';
   renderRewardsList(pts);
   document.getElementById('rewards-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 function renderRewardsList(pts) {
   const list = document.getElementById('rewards-list');
+  if (!list) return;
   if (!state.rewards.length) {
-    list.innerHTML = '<p style="text-align:center;color:var(--ink-muted);padding:20px">No hay recompensas disponibles</p>';
+    list.innerHTML = '<p style="text-align:center;color:var(--ink-muted);padding:20px">No hay recompensas disponibles aún</p>';
     return;
   }
   list.innerHTML = state.rewards.map(r => {
@@ -1318,39 +1309,23 @@ function renderRewardsList(pts) {
     const pct = Math.min(pts / r.points_cost * 100, 100);
     const remaining = r.points_cost - pts;
     const typeLabel = r.reward_type === 'discount_percent'
-      ? `${r.discount_percent}% de descuento en tu pedido`
-      : `${r.products?.name || r.free_product_name} gratis en tu pedido`;
+      ? r.discount_percent + '% de descuento en tu pedido'
+      : (r.products?.name || r.free_product_name || 'Producto') + ' gratis';
 
-    if (isApplied) {
-      return `<div class="reward-card redeemed">
-        <div class="reward-card-top">
-          <span class="reward-card-name">🏆 ${r.name}</span>
-          <span class="reward-card-pts">${r.points_cost} pts</span>
-        </div>
-        <div class="reward-card-desc">${typeLabel}</div>
-        <div class="reward-card-bottom">
-          <span class="redeemed-badge">✓ Aplicada</span>
-          <button class="btn-redeem active" onclick="removeReward('${r.id}')">Quitar</button>
-        </div>
-      </div>`;
-    }
-    if (canAfford) {
-      return `<div class="reward-card can-redeem">
-        <div class="reward-card-top">
-          <span class="reward-card-name">${r.name}</span>
-          <span class="reward-card-pts">${r.points_cost} pts</span>
-        </div>
-        <div class="reward-card-desc">${typeLabel}</div>
-        <div class="reward-card-bottom" style="justify-content:flex-end">
-          <button class="btn-redeem" onclick="applyReward('${r.id}')">Canjear</button>
-        </div>
-      </div>`;
-    }
+    if (isApplied) return `<div class="reward-card redeemed">
+      <div class="reward-card-top"><span class="reward-card-name">🏆 ${r.name}</span><span class="reward-card-pts">${r.points_cost} pts</span></div>
+      <div class="reward-card-desc">${typeLabel}</div>
+      <div class="reward-card-bottom"><span class="redeemed-badge">✓ Aplicada</span><button class="btn-redeem active" onclick="removeReward('${r.id}')">Quitar</button></div>
+    </div>`;
+
+    if (canAfford) return `<div class="reward-card can-redeem">
+      <div class="reward-card-top"><span class="reward-card-name">${r.name}</span><span class="reward-card-pts">${r.points_cost} pts</span></div>
+      <div class="reward-card-desc">${typeLabel}</div>
+      <div class="reward-card-bottom" style="justify-content:flex-end"><button class="btn-redeem" onclick="applyReward('${r.id}')">Canjear</button></div>
+    </div>`;
+
     return `<div class="reward-card locked">
-      <div class="reward-card-top">
-        <span class="reward-card-name">${r.name}</span>
-        <span class="reward-card-pts">${r.points_cost} pts</span>
-      </div>
+      <div class="reward-card-top"><span class="reward-card-name">${r.name}</span><span class="reward-card-pts">${r.points_cost} pts</span></div>
       <div class="reward-card-desc">${typeLabel}</div>
       <div class="reward-card-bottom">
         <div class="reward-progress-bar"><div class="reward-progress-fill" style="width:${pct}%"></div></div>
@@ -1364,60 +1339,34 @@ function applyReward(rewardId) {
   const r = state.rewards.find(x => x.id === rewardId);
   if (!r) return;
   const pts = state.profile?.points_total || 0;
-
-  // Check total points spent
   const totalSpent = state.appliedRewards.reduce((s,a) => s + a.points_cost, 0);
-  if (totalSpent + r.points_cost > pts) {
-    showToast('No tienes suficientes puntos'); return;
-  }
-
-  // If free product, add to cart automatically
+  if (totalSpent + r.points_cost > pts) { showToast('No tienes suficientes puntos'); return; }
   if (r.reward_type === 'free_product' && r.free_product_id) {
     const product = state.products.find(p => p.id === r.free_product_id);
-    if (product) {
-      const existing = state.cart.findIndex(i => i.id === product.id && i.isFreeReward);
-      if (existing === -1) {
-        state.cart.push({
-          id: product.id,
-          name: product.name + ' (gratis 🏆)',
-          price: 0,
-          quantity: 1,
-          notes: 'Producto gratis por canje de puntos',
-          points: 0,
-          isFreeReward: true,
-          rewardId: r.id
-        });
-      }
+    if (product && !state.cart.some(i => i.rewardId === r.id)) {
+      state.cart.push({ id: product.id, name: product.name + ' (gratis 🏆)', price: 0, quantity: 1, notes: 'Canje de puntos', points: 0, isFreeReward: true, rewardId: r.id });
     }
   }
-
   state.appliedRewards.push(r);
   renderRewardsList(pts);
   renderCart();
-  renderAppliedRewards();
   showToast(r.name + ' aplicada 🏆');
 }
 
 function removeReward(rewardId) {
   const r = state.appliedRewards.find(x => x.id === rewardId);
-  if (r?.reward_type === 'free_product') {
-    state.cart = state.cart.filter(i => i.rewardId !== rewardId);
-  }
+  if (r?.reward_type === 'free_product') state.cart = state.cart.filter(i => i.rewardId !== rewardId);
   state.appliedRewards = state.appliedRewards.filter(x => x.id !== rewardId);
-  const pts = state.profile?.points_total || 0;
-  renderRewardsList(pts);
+  renderRewardsList(state.profile?.points_total || 0);
   renderCart();
-  renderAppliedRewards();
 }
 
 function renderAppliedRewards() {
   const container = document.getElementById('cart-applied-rewards');
   if (!container) return;
-  container.innerHTML = state.appliedRewards.map(r => `
-    <span class="applied-reward-tag">
-      🏆 ${r.name}
-      <button class="applied-reward-remove" onclick="removeReward('${r.id}')">✕</button>
-    </span>`).join('');
+  container.innerHTML = state.appliedRewards.map(r =>
+    `<span class="applied-reward-tag">🏆 ${r.name}<button class="applied-reward-remove" onclick="removeReward('${r.id}')">✕</button></span>`
+  ).join('');
 }
 
 function updateRewardsButton() {
@@ -1426,8 +1375,7 @@ function updateRewardsButton() {
   if (!section || !label) return;
   if (state.user && state.profile) {
     section.style.display = 'block';
-    const pts = state.profile.points_total || 0;
-    label.textContent = `Tienes ${pts} puntos`;
+    label.textContent = 'Tienes ' + (state.profile.points_total || 0) + ' puntos';
   } else {
     section.style.display = 'none';
   }
@@ -1473,14 +1421,10 @@ async function placeOrder() {
     ? document.getElementById('scheduled-time').value : null;
 
   const subtotal = state.cart.reduce((s,i) => s + i.price*i.quantity, 0);
-  // Apply reward discounts
-  let rewardDiscountAmt = 0;
-  state.appliedRewards.forEach(r => {
-    if (r.reward_type === 'discount_percent') {
-      rewardDiscountAmt += subtotal * (r.discount_percent / 100);
-    }
-  });
-  const total = Math.max(0, subtotal - rewardDiscountAmt);
+  const hasDiscount = state.profile?.discount_active;
+  const discPct = state.settings?.discount_percent || 10;
+  const discAmt = hasDiscount ? subtotal * discPct / 100 : 0;
+  const total = subtotal - discAmt;
 
   // Estimate delivery time
   const pending = state.pendingOrdersCount;
@@ -1504,8 +1448,6 @@ async function placeOrder() {
     address_references: document.getElementById('checkout-refs').value,
     subtotal,
     discount_amount: discAmt,
-    points_spent: totalPointsSpent,
-    redemptions_applied: JSON.stringify(state.appliedRewards.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type}))),
     total,
     payment_method: paymentMethod,
     estimated_minutes: estimatedMin,
@@ -1521,25 +1463,6 @@ async function placeOrder() {
     showToast('Error al crear el pedido. Intenta de nuevo.');
     btn.disabled = false; btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
     return;
-  }
-
-  // Deduct points and save redemptions
-  if (state.user && totalPointsSpent > 0) {
-    await sb.from('profiles').update({
-      points_total: Math.max(0, (state.profile.points_total || 0) - totalPointsSpent)
-    }).eq('id', state.user.id);
-    if (state.profile) state.profile.points_total = Math.max(0, (state.profile.points_total||0) - totalPointsSpent);
-    // Save each redemption
-    for (const r of state.appliedRewards) {
-      await sb.from('redemptions').insert({
-        user_id: state.user.id,
-        reward_id: r.id,
-        order_id: order.id,
-        reward_name: r.name,
-        points_spent: r.points_cost
-      });
-    }
-    state.appliedRewards = [];
   }
 
   // Insert order items
@@ -1717,12 +1640,18 @@ function bindEvents() {
   document.getElementById('cart-close').onclick = closeCart;
   document.getElementById('btn-checkout').onclick = () => {
     if (!state.cart.length) return;
-    document.getElementById('cart-step-1').classList.add('hidden');
-    document.getElementById('cart-step-2').classList.remove('hidden');
-    if (state.user) document.getElementById('guest-fields').classList.add('hidden');
+    if (!state.user) {
+      document.getElementById('cart-step-1').classList.add('hidden');
+      document.getElementById('cart-step-0').classList.remove('hidden');
+    } else {
+      document.getElementById('cart-step-1').classList.add('hidden');
+      document.getElementById('cart-step-2').classList.remove('hidden');
+      document.getElementById('guest-fields').classList.add('hidden');
+    }
   };
   document.getElementById('btn-place-order').onclick = placeOrder;
   document.getElementById('btn-new-order').onclick = () => {
+    document.getElementById('cart-step-0').classList.add('hidden');
     document.getElementById('cart-step-2').classList.add('hidden');
     document.getElementById('cart-step-3').classList.add('hidden');
     document.getElementById('cart-step-1').classList.remove('hidden');
@@ -1747,10 +1676,40 @@ function bindEvents() {
     document.getElementById('scheduled-time').value = now.toISOString().slice(0,16);
   };
 
-  // Rewards modal
-  document.getElementById('btn-open-rewards').onclick = openRewardsModal;
-  document.getElementById('rewards-modal-close').onclick = () => document.getElementById('rewards-modal').classList.remove('open');
-  document.getElementById('rewards-modal').onclick = e => { if(e.target.id==='rewards-modal') document.getElementById('rewards-modal').classList.remove('open'); };
+
+  document.getElementById('choice-login').onclick = () => {
+    closeCart(); openModal('auth-modal');
+    document.getElementById('auth-login-view').classList.remove('hidden');
+    document.getElementById('auth-register-view').classList.add('hidden');
+    const unsub = sb.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        unsub.data.subscription.unsubscribe();
+        openCart();
+        document.getElementById('cart-step-0').classList.add('hidden');
+        document.getElementById('cart-step-2').classList.remove('hidden');
+        document.getElementById('guest-fields').classList.add('hidden');
+      }
+    });
+  };
+  document.getElementById('choice-register').onclick = () => {
+    closeCart(); openModal('auth-modal');
+    document.getElementById('auth-register-view').classList.remove('hidden');
+    document.getElementById('auth-login-view').classList.add('hidden');
+    const unsub = sb.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        unsub.data.subscription.unsubscribe();
+        openCart();
+        document.getElementById('cart-step-0').classList.add('hidden');
+        document.getElementById('cart-step-2').classList.remove('hidden');
+        document.getElementById('guest-fields').classList.add('hidden');
+      }
+    });
+  };
+  document.getElementById('choice-guest').onclick = () => {
+    document.getElementById('cart-step-0').classList.add('hidden');
+    document.getElementById('cart-step-2').classList.remove('hidden');
+    document.getElementById('guest-fields').classList.remove('hidden');
+  };
 
   // Update status every minute
   setInterval(renderStatus, 60000);
