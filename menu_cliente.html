@@ -1359,20 +1359,27 @@ function renderCart() {
   });
   const total = Math.max(0, subtotal - rewardDiscountAmt);
 
-  document.getElementById('cart-subtotal').textContent = '$' + subtotal.toFixed(0);
-  document.getElementById('cart-total-display').textContent = '$' + total.toFixed(0);
-  document.getElementById('btn-total-display').textContent = '$' + total.toFixed(0);
-  document.getElementById('discount-banner').classList.toggle('hidden', rewardDiscountAmt === 0);
-  document.getElementById('cart-discount-row').classList.toggle('hidden', rewardDiscountAmt === 0);
-  document.getElementById('cart-discount').textContent = '-$' + rewardDiscountAmt.toFixed(0);
-  document.getElementById('btn-checkout').disabled = isEmpty;
+  const safeSet = (id, val, prop='textContent') => { const el=document.getElementById(id); if(el) el[prop]=val; };
+  const safeToggle = (id, cls, force) => { const el=document.getElementById(id); if(el) el.classList.toggle(cls, force); };
+  const safeProp = (id, prop, val) => { const el=document.getElementById(id); if(el) el[prop]=val; };
+
+  safeSet('cart-subtotal', '$' + subtotal.toFixed(0));
+  safeSet('cart-total-display', '$' + total.toFixed(0));
+  safeSet('cart-discount', '-$' + rewardDiscountAmt.toFixed(0));
+  safeToggle('discount-banner', 'hidden', rewardDiscountAmt === 0);
+  safeToggle('cart-discount-row', 'hidden', rewardDiscountAmt === 0);
+  safeProp('btn-checkout', 'disabled', isEmpty);
+
+  // btn-total-display is inside cart-step-2, may not exist
+  const btnTotal = document.getElementById('btn-total-display');
+  if (btnTotal) btnTotal.textContent = '$' + total.toFixed(0);
 
   // Float button
   const totalItems = state.cart.reduce((s,i) => s+i.quantity, 0);
   const float = document.getElementById('cart-float');
-  float.classList.toggle('visible', totalItems > 0);
-  document.getElementById('cart-badge').textContent = totalItems;
-  document.getElementById('cart-float-total').textContent = '$' + total.toFixed(0);
+  if (float) float.classList.toggle('visible', totalItems > 0);
+  safeSet('cart-badge', totalItems);
+  safeSet('cart-float-total', '$' + total.toFixed(0));
 }
 
 // ═══════════════════════════════════════════════
@@ -1609,6 +1616,30 @@ async function placeOrder() {
     subtotal: i.price * i.quantity
   }));
   await sb.from('order_items').insert(items);
+
+  // Deduct points for redeemed rewards immediately
+  const appliedRewardsCopy = [...(state.appliedRewards || [])];
+  const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
+  if (state.user && totalPointsSpent > 0) {
+    const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
+    await sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id);
+    if (state.profile) state.profile.points_total = newTotal;
+    // Save each redemption record
+    for (const r of appliedRewardsCopy) {
+      await sb.from('redemptions').insert({
+        user_id: state.user.id,
+        reward_id: r.id,
+        order_id: order.id,
+        reward_name: r.name,
+        points_spent: r.points_cost
+      });
+    }
+    // Save redemptions in order for reference
+    await sb.from('orders').update({
+      points_spent: totalPointsSpent,
+      redemptions_applied: JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
+    }).eq('id', order.id);
+  }
 
   // Show confirmation
   document.getElementById('cart-step-2').classList.add('hidden');
