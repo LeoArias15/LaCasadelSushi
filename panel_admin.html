@@ -304,7 +304,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
   <div class="sidebar-bottom">
     <div class="business-status">
       <div class="status-row">
-        <span class="status-label">Negocio abierto</span>
+        <span class="status-label">Abierto manualmente</span>
         <label class="toggle"><input type="checkbox" id="toggle-open"><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
       </div>
       <div class="status-row" style="margin-bottom:0">
@@ -697,6 +697,8 @@ async function initApp() {
   setToday();
 }
 
+setInterval(updateStatusBar, 60000);
+
 function startClock() {
   const el = document.getElementById('topbar-clock');
   function tick() { el.textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',weekday:'short',day:'numeric',month:'short'}); }
@@ -794,11 +796,30 @@ function updateStatusToggles() {
 function updateStatusBar() {
   if (!state.settings) return;
   const s = state.settings;
-  const isOpen = s.is_open && !s.pause_orders;
+  const now = new Date();
+  const [oh, om] = (s.open_time || '13:00').split(':').map(Number);
+  const [ch, cm] = (s.close_time || '22:00').split(':').map(Number);
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const openMin = oh*60+om, closeMin = ch*60+cm;
+  const dayOfWeek = now.getDay();
+  const openDays = s.open_days ? s.open_days : [0,1,2,3,4,5,6];
+  const withinHours = nowMin >= openMin && nowMin <= closeMin && openDays.includes(dayOfWeek);
+  const isOpen = s.is_open && !s.pause_orders && withinHours;
+
   const el = document.getElementById('topbar-status');
-  el.textContent = s.pause_orders ? 'Pedidos pausados' : (s.is_open ? 'Abierto' : 'Cerrado');
-  el.style.background = isOpen ? 'rgba(82,196,138,0.15)' : 'rgba(224,82,82,0.15)';
-  el.style.color = isOpen ? 'var(--green)' : 'var(--red)';
+  let label, bg, color;
+  if (s.pause_orders) {
+    label='Pedidos pausados'; bg='rgba(224,150,82,0.15)'; color='var(--orange)';
+  } else if (!s.is_open) {
+    label='Cerrado (manual)'; bg='rgba(224,82,82,0.15)'; color='var(--red)';
+  } else if (!withinHours) {
+    label=`Fuera de horario`; bg='rgba(224,82,82,0.15)'; color='var(--red)';
+  } else {
+    label='Abierto'; bg='rgba(82,196,138,0.15)'; color='var(--green)';
+  }
+  el.textContent = label;
+  el.style.background = bg;
+  el.style.color = color;
 }
 document.getElementById('toggle-open').onchange = async (e) => {
   await sb.from('settings').update({is_open:e.target.checked}).eq('id',1);
