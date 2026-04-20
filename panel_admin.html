@@ -265,7 +265,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-logo">Sushi <span>House</span></div>
+    <div class="login-logo">La Casa <span>del Sushi</span></div>
     <div class="login-sub">Panel de Administración</div>
     <div class="login-error" id="login-error">Credenciales incorrectas</div>
     <div class="field"><label>Correo</label><input type="email" id="l-email" placeholder="admin@sushihouse.mx"></div>
@@ -279,7 +279,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
 
 <aside class="sidebar">
   <div class="sidebar-logo">
-    <h1>Sushi <span>House</span></h1>
+    <h1>La Casa <span>del Sushi</span></h1>
     <p>Panel de control</p>
   </div>
   <div class="sidebar-nav">
@@ -375,7 +375,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
         <button class="btn-add" id="btn-new-product">+ Nuevo producto</button>
       </div>
       <table class="table">
-        <thead><tr><th>Imagen</th><th>Producto</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Destacado</th><th>Puntos</th><th>Acciones</th></tr></thead>
+        <thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Destacado</th><th>Puntos</th><th>Acciones</th></tr></thead>
         <tbody id="products-tbody"></tbody>
       </table>
     </div>
@@ -397,7 +397,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
       </div>
       <div class="client-table-wrapper">
         <table class="table">
-          <thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Pedidos</th><th>Puntos</th><th>Descuento</th><th>% Desc.</th><th>Dirección</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Pedidos</th><th>Puntos</th><th>Dirección</th><th>Acciones</th></tr></thead>
           <tbody id="clients-tbody"></tbody>
         </table>
       </div>
@@ -1088,7 +1088,6 @@ function renderProducts(filter='') {
   const prods = filter ? state.products.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())) : state.products;
   document.getElementById('products-tbody').innerHTML = prods.map(p=>`
     <tr>
-      <td>${p.image_url?`<img src="${p.image_url}" class="prod-thumb" alt="">`:'<div class="prod-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px">${p.categories?.emoji||"🍣"}</div>'}</td>
       <td class="prod-name-cell">${p.name}</td>
       <td class="prod-cat-cell">${p.categories?.emoji||''} ${p.categories?.name||'—'}</td>
       <td class="prod-price-cell">$${p.price.toFixed(0)}</td>
@@ -1295,8 +1294,6 @@ function renderClients(filter='') {
       <td style="color:var(--text2)">${c.email||'—'}</td>
       <td><span class="pill" style="background:var(--surface3);color:var(--text2)">${c.orders_count||0}</span></td>
       <td><span class="pill pill-gold">${c.points_total||0} pts</span></td>
-      <td>${c.discount_active?'<span class="pill pill-green">Activo</span>':'—'}</td>
-      <td style="color:var(--text2)">${c.discount_percent||10}%</td>
       <td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.address_line||'—'}</td>
       <td><button class="action-btn" onclick="openClientModal('${c.id}')">Ver / Editar</button></td>
     </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px">Sin clientes registrados</td></tr>';
@@ -1368,16 +1365,20 @@ function renderSettings() {
       <div class="settings-card-title">Horario y operación</div>
       <div class="form-group"><label>Hora de apertura</label><input id="s-open" type="time" value="${s.open_time||'13:00'}"></div>
       <div class="form-group" style="margin-top:12px"><label>Hora de cierre</label><input id="s-close" type="time" value="${s.close_time||'22:00'}"></div>
+      <div style="margin-top:16px">
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);display:block;margin-bottom:10px">Días de operación</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap" id="s-days-wrap">
+          ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map((d,i) => {
+            const active = (s.open_days||[1,2,3,4,5,6]).includes(i);
+            return `<button type="button" onclick="toggleDay(${i})" id="day-btn-${i}" style="padding:6px 12px;border-radius:8px;border:1.5px solid ${active?'var(--gold)':'var(--border2)'};background:${active?'var(--gold-bg)':'transparent'};color:${active?'var(--gold)':'var(--text2)'};font-family:var(--ff);font-size:12px;cursor:pointer;font-weight:500">${d}</button>`;
+          }).join('')}
+        </div>
+      </div>
       <div class="form-group" style="margin-top:12px"><label>Máx. pedidos simultáneos</label><input id="s-maxord" type="number" value="${s.max_concurrent_orders||8}"></div>
       <div class="form-group" style="margin-top:12px"><label>Tiempo base de entrega (min)</label><input id="s-basetime" type="number" value="${s.delivery_base_minutes||25}"></div>
       <button class="btn-save" onclick="saveHours()">Guardar horario</button>
     </div>
-    <div class="settings-card">
-      <div class="settings-card-title">Fidelidad y descuentos</div>
-      <div class="form-group"><label>Puntos para ganar descuento 🏆</label><input id="s-threshold" type="number" value="${s.loyalty_threshold||100}"><span style="font-size:11px;color:var(--text3);margin-top:4px;display:block">Suma de puntos necesaria para activar el descuento</span></div>
-      <div class="form-group" style="margin-top:12px"><label>Porcentaje de descuento (%)</label><input id="s-discpct" type="number" value="${s.discount_percent||10}"></div>
-      <button class="btn-save" onclick="saveLoyalty()">Guardar fidelidad</button>
-    </div>
+
     <div class="settings-card">
       <div class="settings-card-title">Métodos de pago</div>
       <div class="toggle-row"><div><div class="toggle-row-label">Efectivo</div><div class="toggle-row-sub">Pago al entregar</div></div><label class="toggle"><input type="checkbox" id="s-cash" ${s.cash_enabled?'checked':''}><div class="toggle-track"></div><div class="toggle-thumb"></div></label></div>
@@ -1397,13 +1398,21 @@ function renderSettings() {
   `;
 }
 
-async function saveHours() {
-  const d={open_time:document.getElementById('s-open').value,close_time:document.getElementById('s-close').value,max_concurrent_orders:parseInt(document.getElementById('s-maxord').value),delivery_base_minutes:parseInt(document.getElementById('s-basetime').value)};
-  await sb.from('settings').update(d).eq('id',1); Object.assign(state.settings,d); showToast('Horario guardado ✓');
+function toggleDay(i) {
+  const s = window._activeDays = window._activeDays || [...(state.settings?.open_days || [1,2,3,4,5,6])];
+  const idx = s.indexOf(i);
+  if (idx === -1) s.push(i); else s.splice(idx, 1);
+  window._activeDays = s;
+  const btn = document.getElementById('day-btn-'+i);
+  const active = s.includes(i);
+  btn.style.border = '1.5px solid ' + (active ? 'var(--gold)' : 'var(--border2)');
+  btn.style.background = active ? 'var(--gold-bg)' : 'transparent';
+  btn.style.color = active ? 'var(--gold)' : 'var(--text2)';
 }
-async function saveLoyalty() {
-  const d={loyalty_threshold:parseInt(document.getElementById('s-threshold').value),discount_percent:parseInt(document.getElementById('s-discpct').value)};
-  await sb.from('settings').update(d).eq('id',1); Object.assign(state.settings,d); showToast('Fidelidad guardada ✓');
+
+async function saveHours() {
+  const d={open_time:document.getElementById('s-open').value,close_time:document.getElementById('s-close').value,max_concurrent_orders:parseInt(document.getElementById('s-maxord').value),delivery_base_minutes:parseInt(document.getElementById('s-basetime').value),open_days:window._activeDays||(state.settings?.open_days||[1,2,3,4,5,6])};
+  await sb.from('settings').update(d).eq('id',1); Object.assign(state.settings,d); showToast('Horario guardado ✓');
 }
 async function savePayments() {
   const d={cash_enabled:document.getElementById('s-cash').checked,transfer_enabled:document.getElementById('s-transfer').checked,mercadopago_enabled:document.getElementById('s-mp').checked,transfer_clabe:document.getElementById('s-clabe').value,transfer_bank:document.getElementById('s-bank').value,transfer_account_name:document.getElementById('s-accname').value};
