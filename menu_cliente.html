@@ -1185,6 +1185,18 @@ async function init() {
         updateRewardsButton();
       })
       .subscribe();
+
+    // Realtime: order status changes for this user
+    sb.channel('user-orders')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `user_id=eq.${state.user.id}`
+      }, () => {
+        loadOrderHistory();
+      })
+      .subscribe();
   }
 }
 
@@ -1732,15 +1744,20 @@ async function placeOrder() {
   if (btn.disabled) return; // prevent double-submit
   btn.disabled = true; btn.textContent = 'Procesando...';
 
-  // Safety net: re-enable button after 25s no matter what
+  // Safety net: re-enable button after 12s no matter what (in case finally never runs)
   const safetyTimer = setTimeout(() => {
     btn.disabled = false;
     btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
-    showToast('La conexión tardó demasiado. Intenta de nuevo.');
-  }, 25000);
+    showToast('Sin conexión. Intenta de nuevo.');
+  }, 12000);
+
+  const sbTimeout = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
 
   try {
-    const { data: order, error } = await sb.from('orders').insert(orderData).select().single();
+    const { data: order, error } = await Promise.race([
+      sb.from('orders').insert(orderData).select().single(),
+      sbTimeout(10000)
+    ]);
     if (error) {
       showToast('Error al crear el pedido. Intenta de nuevo.');
       return;
