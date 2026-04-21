@@ -1095,7 +1095,7 @@ function openOrderModal(orderId) {
       <div class="detail-row"><span class="detail-key">Subtotal</span><span class="detail-val">$${o.subtotal.toFixed(0)}</span></div>
       ${o.discount_amount>0?`<div class="detail-row"><span class="detail-key">Descuento VIP</span><span class="detail-val" style="color:var(--green)">-$${o.discount_amount.toFixed(0)}</span></div>`:''}
       ${o.points_spent>0?`<div class="detail-row"><span class="detail-key">Puntos canjeados</span><span class="detail-val" style="color:var(--gold)">${o.points_spent} pts</span></div>`:''}
-      ${(()=>{try{const rs=JSON.parse(o.redemptions_applied||'null');return rs?.length?`<div class="detail-row"><span class="detail-key">Recompensas</span><span class="detail-val" style="color:var(--gold)">${rs.map(r=>r.name).join(', ')}</span></div>`:''}catch{return '';}})()}
+      ${(()=>{try{const raw=o.redemptions_applied;const rs=Array.isArray(raw)?raw:(raw?JSON.parse(raw):null);return rs?.length?`<div class="detail-row"><span class="detail-key">Recompensas</span><span class="detail-val" style="color:var(--gold)">${rs.map(r=>r.name).join(', ')}</span></div>`:''}catch{return '';}})()}
       <div class="detail-row"><span class="detail-key">Total</span><span class="detail-val" style="font-family:var(--ff-display);font-size:18px">$${o.total.toFixed(0)}</span></div>
       <div class="detail-row"><span class="detail-key">Método</span><span class="detail-val">${PAYMENT_LABELS[o.payment_method]||'Efectivo'}</span></div>
     </div>
