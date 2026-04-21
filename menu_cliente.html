@@ -1261,9 +1261,32 @@ function renderStatus() {
   const isOpen = s.is_open && !s.pause_orders && nowMin >= openMin && nowMin <= closeMin && openDays.includes(dayOfWeek);
 
   document.getElementById('status-dot').className = 'status-dot' + (isOpen ? '' : ' closed');
+
+  let closedMsg;
+  if (!isOpen) {
+    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    // Find next open day starting from today
+    let nextDay = null, daysAhead = 0;
+    for (let i = 1; i <= 7; i++) {
+      const candidate = (dayOfWeek + i) % 7;
+      if (openDays.includes(candidate)) { nextDay = candidate; daysAhead = i; break; }
+    }
+    // Also check if it opens later today
+    const opensLaterToday = openDays.includes(dayOfWeek) && nowMin < openMin;
+    if (opensLaterToday) {
+      closedMsg = `Cerrado — Abrimos hoy a las ${s.open_time.slice(0,5)}`;
+    } else if (daysAhead === 1) {
+      closedMsg = `Cerrado — Abrimos mañana a las ${s.open_time.slice(0,5)}`;
+    } else if (nextDay !== null) {
+      closedMsg = `Cerrado — Abrimos el ${dias[nextDay]} a las ${s.open_time.slice(0,5)}`;
+    } else {
+      closedMsg = `Cerrado`;
+    }
+  }
+
   document.getElementById('status-text').textContent = isOpen
     ? `Abierto — Cerramos a las ${s.close_time.slice(0,5)}`
-    : `Cerrado — Abrimos a las ${s.open_time.slice(0,5)}`;
+    : closedMsg;
   document.getElementById('closed-banner').classList.toggle('visible', !isOpen);
 
   const pending = state.pendingOrdersCount;
