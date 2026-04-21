@@ -1680,10 +1680,23 @@ async function placeOrder() {
     ? document.getElementById('scheduled-time').value : null;
 
   const subtotal = state.cart.reduce((s,i) => s + i.price*i.quantity, 0);
+
+  // Compute redemptions before insert so they go in the original row
+  const appliedRewardsCopy = [...(state.appliedRewards || [])];
+  const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
+
+  // VIP discount
   const hasDiscount = state.profile?.discount_active;
   const discPct = state.settings?.discount_percent || 10;
-  const discAmt = hasDiscount ? subtotal * discPct / 100 : 0;
-  const total = subtotal - discAmt;
+  const vipDiscAmt = hasDiscount ? subtotal * discPct / 100 : 0;
+
+  // Reward-based discount (discount_percent type rewards)
+  const rewardDiscAmt = appliedRewardsCopy.reduce((s,r) => {
+    return r.reward_type === 'discount_percent' ? s + subtotal * ((r.discount_percent||0) / 100) : s;
+  }, 0);
+
+  const discAmt = vipDiscAmt + rewardDiscAmt;
+  const total = Math.max(0, subtotal - discAmt);
 
   // Estimate delivery time
   const pending = state.pendingOrdersCount;
@@ -1691,10 +1704,6 @@ async function placeOrder() {
   const extra = Math.floor(pending / 3) * 10;
   const zoneExtra = colonia ? (state.settings?.delivery_per_zone_minutes || 10) : 0;
   const estimatedMin = base + extra + zoneExtra;
-
-  // Compute redemptions before insert so they go in the original row
-  const appliedRewardsCopy = [...(state.appliedRewards || [])];
-  const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
 
   const orderData = {
     user_id: state.user?.id || null,
@@ -1715,12 +1724,20 @@ async function placeOrder() {
     priority_score: state.deliveryType === 'asap' ? 90 : 40,
     points_spent: totalPointsSpent > 0 ? totalPointsSpent : null,
     redemptions_applied: appliedRewardsCopy.length > 0
-      ? JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
+      ? JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type,discount_percent:r.discount_percent||null})))
       : null
   };
 
   const btn = document.getElementById('btn-place-order');
+  if (btn.disabled) return; // prevent double-submit
   btn.disabled = true; btn.textContent = 'Procesando...';
+
+  // Safety net: re-enable button after 25s no matter what
+  const safetyTimer = setTimeout(() => {
+    btn.disabled = false;
+    btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
+    showToast('La conexión tardó demasiado. Intenta de nuevo.');
+  }, 25000);
 
   try {
     const { data: order, error } = await sb.from('orders').insert(orderData).select().single();
@@ -1805,6 +1822,7 @@ async function placeOrder() {
     console.error('placeOrder error:', e);
     showToast('Error al procesar el pedido. Intenta de nuevo.');
   } finally {
+    clearTimeout(safetyTimer);
     btn.disabled = false;
     btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
   }
@@ -1918,7 +1936,7 @@ async function loadOrderHistory() {
             <div style="font-size:12px;color:var(--ink-muted)">Pago: ${paymentLabels[o.payment_method]||'Efectivo'}</div>
             ${o.discount_amount>0?`<div style="font-size:12px;color:var(--gold)">Descuento VIP: -$${o.discount_amount.toFixed(0)}</div>`:''}
             ${o.points_spent>0?`<div style="font-size:12px;color:var(--gold)">Puntos canjeados: ${o.points_spent} pts</div>`:''}
-            ${(()=>{try{const rs=JSON.parse(o.redemptions_applied||'null');return rs?.length?`<div style="font-size:12px;color:var(--gold)">Recompensas: ${rs.map(r=>r.name).join(', ')}</div>`:''}catch{return '';}})()}
+            ${(()=>{try{const raw=o.redemptions_applied;const rs=Array.isArray(raw)?raw:(raw?JSON.parse(raw):null);return rs?.length?`<div style="font-size:12px;color:var(--gold)">Recompensas: ${rs.map(r=>r.name).join(', ')}</div>`:''}catch{return '';}})()}
             ${o.points_earned>0?`<div style="font-size:12px;color:var(--gold)">Puntos ganados: +${o.points_earned}</div>`:''}
           </div>
           <div style="font-family:var(--ff-display);font-size:20px">$${o.total.toFixed(0)}</div>
