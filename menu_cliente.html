@@ -1692,6 +1692,10 @@ async function placeOrder() {
   const zoneExtra = colonia ? (state.settings?.delivery_per_zone_minutes || 10) : 0;
   const estimatedMin = base + extra + zoneExtra;
 
+  // Compute redemptions before insert so they go in the original row
+  const appliedRewardsCopy = [...(state.appliedRewards || [])];
+  const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
+
   const orderData = {
     user_id: state.user?.id || null,
     guest_name: !state.user ? document.getElementById('checkout-name').value : null,
@@ -1708,7 +1712,11 @@ async function placeOrder() {
     payment_method: paymentMethod,
     estimated_minutes: estimatedMin,
     notes: document.getElementById('checkout-notes').value,
-    priority_score: state.deliveryType === 'asap' ? 90 : 40
+    priority_score: state.deliveryType === 'asap' ? 90 : 40,
+    points_spent: totalPointsSpent > 0 ? totalPointsSpent : null,
+    redemptions_applied: appliedRewardsCopy.length > 0
+      ? JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
+      : null
   };
 
   const btn = document.getElementById('btn-place-order');
@@ -1733,9 +1741,7 @@ async function placeOrder() {
     }));
     await sb.from('order_items').insert(items);
 
-    // Deduct points for redeemed rewards immediately
-    const appliedRewardsCopy = [...(state.appliedRewards || [])];
-    const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
+    // Deduct points from profile and record individual redemptions
     if (state.user && totalPointsSpent > 0) {
       const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
       await sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id);
@@ -1749,11 +1755,6 @@ async function placeOrder() {
           points_spent: r.points_cost
         });
       }
-      // Save points_spent and redemption detail on order
-      await sb.from('orders').update({
-        points_spent: totalPointsSpent,
-        redemptions_applied: JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
-      }).eq('id', order.id);
     }
 
     // Show confirmation
