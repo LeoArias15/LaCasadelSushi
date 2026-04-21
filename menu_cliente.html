@@ -1714,93 +1714,99 @@ async function placeOrder() {
   const btn = document.getElementById('btn-place-order');
   btn.disabled = true; btn.textContent = 'Procesando...';
 
-  const { data: order, error } = await sb.from('orders').insert(orderData).select().single();
-  if (error) {
-    showToast('Error al crear el pedido. Intenta de nuevo.');
-    btn.disabled = false; btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
-    return;
-  }
-
-  // Insert order items
-  const items = state.cart.map(i => ({
-    order_id: order.id,
-    product_id: i.id,
-    product_name: i.name,
-    product_price: i.price,
-    quantity: i.quantity,
-    notes: i.notes || null,
-    subtotal: i.price * i.quantity
-  }));
-  await sb.from('order_items').insert(items);
-
-  // Deduct points for redeemed rewards immediately
-  const appliedRewardsCopy = [...(state.appliedRewards || [])];
-  const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
-  if (state.user && totalPointsSpent > 0) {
-    const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
-    await sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id);
-    if (state.profile) state.profile.points_total = newTotal;
-    // Save each redemption record
-    for (const r of appliedRewardsCopy) {
-      await sb.from('redemptions').insert({
-        user_id: state.user.id,
-        reward_id: r.id,
-        order_id: order.id,
-        reward_name: r.name,
-        points_spent: r.points_cost
-      });
+  try {
+    const { data: order, error } = await sb.from('orders').insert(orderData).select().single();
+    if (error) {
+      showToast('Error al crear el pedido. Intenta de nuevo.');
+      return;
     }
-    // Save points_spent on order (for refund on cancellation)
-    const { error: ptErr } = await sb.from('orders').update({ points_spent: totalPointsSpent }).eq('id', order.id);
-    if (ptErr) console.error('points_spent update failed:', ptErr);
-    // Save redemption detail (best-effort, non-critical)
-    sb.from('orders').update({
-      redemptions_applied: JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
-    }).eq('id', order.id);
+
+    // Insert order items
+    const items = state.cart.map(i => ({
+      order_id: order.id,
+      product_id: i.id,
+      product_name: i.name,
+      product_price: i.price,
+      quantity: i.quantity,
+      notes: i.notes || null,
+      subtotal: i.price * i.quantity
+    }));
+    await sb.from('order_items').insert(items);
+
+    // Deduct points for redeemed rewards immediately
+    const appliedRewardsCopy = [...(state.appliedRewards || [])];
+    const totalPointsSpent = appliedRewardsCopy.reduce((s,r) => s + r.points_cost, 0);
+    if (state.user && totalPointsSpent > 0) {
+      const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
+      await sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id);
+      if (state.profile) state.profile.points_total = newTotal;
+      for (const r of appliedRewardsCopy) {
+        await sb.from('redemptions').insert({
+          user_id: state.user.id,
+          reward_id: r.id,
+          order_id: order.id,
+          reward_name: r.name,
+          points_spent: r.points_cost
+        });
+      }
+      // Save points_spent and redemption detail on order
+      await sb.from('orders').update({
+        points_spent: totalPointsSpent,
+        redemptions_applied: JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
+      }).eq('id', order.id);
+    }
+
+    // Show confirmation
+    document.getElementById('cart-step-2').classList.add('hidden');
+    document.getElementById('cart-step-3').classList.remove('hidden');
+    document.getElementById('confirm-number').textContent = order.order_number;
+    document.getElementById('confirm-time').textContent = estimatedMin + ' min';
+
+    const msg = `Hola! Mi pedido es el ${order.order_number}. ¿Cómo va?`;
+    document.getElementById('whatsapp-link').href =
+      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+    // Clear everything immediately so menu is ready for next order
+    state.cart = [];
+    state.appliedRewards = [];
+    state.deliveryType = 'asap';
+
+    // Reset form fields
+    ['checkout-address','checkout-colonia','checkout-refs','checkout-name','checkout-phone','checkout-notes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    // Re-fill address from profile if available
+    if (state.profile?.address_line) {
+      const a = document.getElementById('checkout-address');
+      const c = document.getElementById('checkout-colonia');
+      const r = document.getElementById('checkout-refs');
+      if (a) a.value = state.profile.address_line;
+      if (c) c.value = state.profile.address_colonia || '';
+      if (r) r.value = state.profile.address_references || '';
+    }
+
+    // Reset delivery options UI
+    document.getElementById('opt-asap')?.classList.add('selected');
+    document.getElementById('opt-scheduled')?.classList.remove('selected');
+    document.getElementById('scheduled-time-group')?.classList.add('hidden');
+
+    // Force hide float button
+    const float = document.getElementById('cart-float');
+    if (float) float.classList.remove('visible');
+
+    // Re-render menu and refresh order history
+    renderCart();
+    renderMenu();
+    if (state.user) loadOrderHistory();
+
+  } catch(e) {
+    console.error('placeOrder error:', e);
+    showToast('Error al procesar el pedido. Intenta de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `Confirmar pedido — <span id="btn-total-display">$${total.toFixed(0)}</span>`;
   }
-
-  // Show confirmation
-  document.getElementById('cart-step-2').classList.add('hidden');
-  document.getElementById('cart-step-3').classList.remove('hidden');
-  document.getElementById('confirm-number').textContent = order.order_number;
-  document.getElementById('confirm-time').textContent = estimatedMin + ' min';
-
-  const msg = `Hola! Mi pedido es el ${order.order_number}. ¿Cómo va?`;
-  document.getElementById('whatsapp-link').href =
-    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-
-  // Clear everything immediately so menu is ready for next order
-  state.cart = [];
-  state.appliedRewards = [];
-  state.deliveryType = 'asap';
-
-  // Reset form fields
-  ['checkout-address','checkout-colonia','checkout-refs','checkout-name','checkout-phone','checkout-notes'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  // Re-fill address from profile if available
-  if (state.profile?.address_line) {
-    const a = document.getElementById('checkout-address');
-    const c = document.getElementById('checkout-colonia');
-    const r = document.getElementById('checkout-refs');
-    if (a) a.value = state.profile.address_line;
-    if (c) c.value = state.profile.address_colonia || '';
-    if (r) r.value = state.profile.address_references || '';
-  }
-
-  // Reset delivery options UI
-  document.getElementById('opt-asap')?.classList.add('selected');
-  document.getElementById('opt-scheduled')?.classList.remove('selected');
-  document.getElementById('scheduled-time-group')?.classList.add('hidden');
-
-  // Force hide float button
-  const float = document.getElementById('cart-float');
-  if (float) float.classList.remove('visible');
-
-  // Re-render menu so product cards show fresh state
-  renderCart();
-  renderMenu();
 }
 
 // ═══════════════════════════════════════════════
@@ -1909,7 +1915,9 @@ async function loadOrderHistory() {
         <div class="order-hist-summary">
           <div>
             <div style="font-size:12px;color:var(--ink-muted)">Pago: ${paymentLabels[o.payment_method]||'Efectivo'}</div>
-            ${o.discount_amount>0?`<div style="font-size:12px;color:var(--gold)">Descuento: -$${o.discount_amount.toFixed(0)}</div>`:''}
+            ${o.discount_amount>0?`<div style="font-size:12px;color:var(--gold)">Descuento VIP: -$${o.discount_amount.toFixed(0)}</div>`:''}
+            ${o.points_spent>0?`<div style="font-size:12px;color:var(--gold)">Puntos canjeados: ${o.points_spent} pts</div>`:''}
+            ${(()=>{try{const rs=JSON.parse(o.redemptions_applied||'null');return rs?.length?`<div style="font-size:12px;color:var(--gold)">Recompensas: ${rs.map(r=>r.name).join(', ')}</div>`:''}catch{return '';}})()}
             ${o.points_earned>0?`<div style="font-size:12px;color:var(--gold)">Puntos ganados: +${o.points_earned}</div>`:''}
           </div>
           <div style="font-family:var(--ff-display);font-size:20px">$${o.total.toFixed(0)}</div>
