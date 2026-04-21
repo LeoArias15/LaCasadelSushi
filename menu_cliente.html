@@ -729,6 +729,8 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
 [data-theme="dark"] .option-btn{color:var(--ink-soft);}
 [data-theme="dark"] .option-btn.selected{background:#4a4a4c;border-color:#4a4a4c;color:#fff;}
 [data-theme="dark"] .option-btn:hover:not(.selected){border-color:var(--ink-soft);}
+[data-theme="dark"] .btn-redeem{background:#4a4a4c;}
+[data-theme="dark"] .btn-redeem.active{background:var(--red);}
 [data-theme="dark"] #icon-sun{display:block;}
 [data-theme="dark"] #icon-moon{display:none;}
 #icon-sun{display:none;}
@@ -1748,9 +1750,11 @@ async function placeOrder() {
         points_spent: r.points_cost
       });
     }
-    // Save redemptions in order for reference
-    await sb.from('orders').update({
-      points_spent: totalPointsSpent,
+    // Save points_spent on order (for refund on cancellation)
+    const { error: ptErr } = await sb.from('orders').update({ points_spent: totalPointsSpent }).eq('id', order.id);
+    if (ptErr) console.error('points_spent update failed:', ptErr);
+    // Save redemption detail (best-effort, non-critical)
+    sb.from('orders').update({
       redemptions_applied: JSON.stringify(appliedRewardsCopy.map(r=>({id:r.id,name:r.name,points_cost:r.points_cost,reward_type:r.reward_type})))
     }).eq('id', order.id);
   }
@@ -2141,11 +2145,15 @@ function bindEvents() {
 }
 
 function toggleOption(btn, option) {
+  const max = state.currentProduct?.options_max || 2;
   if (btn.classList.contains('selected')) {
     btn.classList.remove('selected');
     state.selectedOptions = (state.selectedOptions||[]).filter(o => o !== option);
   } else {
-    if ((state.selectedOptions||[]).length >= 2) { showToast('Máximo 2 sabores'); return; }
+    if ((state.selectedOptions||[]).length >= max) {
+      showToast(max === 1 ? 'Solo puedes elegir 1 opción' : `Máximo ${max} opciones`);
+      return;
+    }
     btn.classList.add('selected');
     state.selectedOptions = [...(state.selectedOptions||[]), option];
   }

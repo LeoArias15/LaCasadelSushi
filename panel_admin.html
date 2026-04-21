@@ -602,10 +602,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
           <input id="pf-points" type="number" min="0" placeholder="ej. 10" style="border-color:var(--gold)">
           <span style="font-size:11px;color:var(--text3);margin-top:2px">Puntos que gana el cliente por cada unidad comprada</span>
         </div>
-        <div class="form-group span2">
+        <div class="form-group">
           <label>Opciones de sabor (separadas por coma)</label>
           <input id="pf-options" placeholder="Mango, Fresa, Piña, Uva">
-          <span style="font-size:11px;color:var(--text3);margin-top:2px">El cliente elige hasta 2. Deja vacío si no aplica.</span>
+          <span style="font-size:11px;color:var(--text3);margin-top:2px">Deja vacío si no aplica.</span>
+        </div>
+        <div class="form-group">
+          <label>Máximo de opciones a elegir</label>
+          <input id="pf-options-max" type="number" min="1" max="10" placeholder="ej. 1">
+          <span style="font-size:11px;color:var(--text3);margin-top:2px">Cuántas puede seleccionar el cliente.</span>
         </div>
       </div>
       <div class="form-row">
@@ -1284,6 +1289,7 @@ function openProductForm(product=null) {
     document.getElementById('pf-order').value = product.sort_order||0;
     document.getElementById('pf-points').value = product.points||0;
     document.getElementById('pf-options').value = (product.custom_options||[]).join(', ');
+    document.getElementById('pf-options-max').value = product.options_max||'';
     document.getElementById('pf-available').value = String(product.available);
     document.getElementById('pf-featured').value = String(product.featured);
     if (product.image_url) {
@@ -1294,7 +1300,7 @@ function openProductForm(product=null) {
   } else {
     document.getElementById('pf-title').textContent = 'Nuevo producto';
     document.getElementById('pf-id').value = '';
-    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options'].forEach(id=>document.getElementById(id).value='');
+    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options','pf-options-max'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pf-available').value = 'true';
     document.getElementById('pf-featured').value = 'false';
   }
@@ -1368,6 +1374,7 @@ document.getElementById('btn-save-product').onclick = async () => {
     sort_order: parseInt(document.getElementById('pf-order').value)||0,
     points: parseInt(document.getElementById('pf-points').value)||0,
     custom_options: document.getElementById('pf-options').value.split(',').map(s=>s.trim()).filter(Boolean),
+    options_max: parseInt(document.getElementById('pf-options-max').value)||null,
     available: document.getElementById('pf-available').value==='true',
     featured: document.getElementById('pf-featured').value==='true'
   };
