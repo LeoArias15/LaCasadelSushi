@@ -1049,6 +1049,14 @@ function openOrderModal(orderId) {
   state.currentOrder = o;
   document.getElementById('modal-order-title').textContent = o.order_number;
 
+  const receiptHtml = o.payment_method === 'transfer'
+    ? '<div class="detail-section"><div class="detail-title">Comprobante de transferencia</div>' +
+      (o.receipt_url
+        ? '<a href="' + o.receipt_url + '" target="_blank" rel="noopener"><img src="' + o.receipt_url + '" style="width:100%;border-radius:8px;margin-top:8px;cursor:zoom-in;display:block" alt="Comprobante"></a>'
+        : '<p style="font-size:13px;color:var(--text2);margin-top:6px">Sin comprobante adjunto</p>') +
+      '</div>'
+    : '';
+
   const nextStatuses = {
     pending:[{s:'confirmed',label:'Confirmar',color:'var(--blue)'},{s:'preparing',label:'Pasar a Preparando',color:'var(--blue)'}],
     confirmed:[{s:'preparing',label:'Iniciar Preparación',color:'var(--blue)'}],
