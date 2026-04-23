@@ -1074,7 +1074,10 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <span id="receipt-upload-text">Agregar comprobante</span>
           </label>
-          <img id="receipt-preview" alt="Vista previa del comprobante">
+          <div id="receipt-preview-wrap" style="display:none;position:relative;margin-top:10px;">
+            <img id="receipt-preview" alt="Vista previa del comprobante" style="width:100%;border-radius:var(--r);display:block;max-height:200px;object-fit:cover;">
+            <button type="button" onclick="clearReceipt()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Notas del pedido</label>
@@ -1482,15 +1485,21 @@ function renderPaymentOptions() {
     fileInput.onchange = () => {
       const file = fileInput.files[0];
       if (!file) return;
-      const label = document.getElementById('receipt-upload-label');
-      const text = document.getElementById('receipt-upload-text');
-      const preview = document.getElementById('receipt-preview');
-      text.textContent = file.name;
-      label.classList.add('has-file');
-      preview.src = URL.createObjectURL(file);
-      preview.style.display = 'block';
+      document.getElementById('receipt-upload-text').textContent = file.name;
+      document.getElementById('receipt-upload-label').classList.add('has-file');
+      document.getElementById('receipt-preview').src = URL.createObjectURL(file);
+      document.getElementById('receipt-preview-wrap').style.display = 'block';
     };
   }
+}
+
+function clearReceipt() {
+  const fileInput = document.getElementById('receipt-file');
+  if (fileInput) fileInput.value = '';
+  document.getElementById('receipt-upload-text').textContent = 'Agregar comprobante';
+  document.getElementById('receipt-upload-label').classList.remove('has-file');
+  document.getElementById('receipt-preview').src = '';
+  document.getElementById('receipt-preview-wrap').style.display = 'none';
 }
 
 function renderCart() {
@@ -1877,6 +1886,8 @@ async function placeOrder() {
     state.cart = [];
     state.appliedRewards = [];
     state.deliveryType = 'asap';
+    clearReceipt();
+    document.getElementById('transfer-receipt-section')?.classList.add('hidden');
 
     // Reset form fields
     ['checkout-address','checkout-colonia','checkout-refs','checkout-name','checkout-phone','checkout-notes'].forEach(id => {
@@ -2032,6 +2043,16 @@ async function loadOrderHistory() {
         </div>
         ${o.address_line?`<div class="order-hist-address">${o.address_line}${o.address_colonia?', '+o.address_colonia:''}</div>`:''}
         ${o.notes?`<div class="order-hist-address" style="margin-top:4px">${o.notes}</div>`:''}
+        ${o.payment_method==='transfer'?`
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--ink-muted);margin-bottom:8px">Comprobante de transferencia</div>
+          ${o.receipt_url?`<a href="${o.receipt_url}" target="_blank"><img src="${o.receipt_url}" style="width:100%;border-radius:8px;margin-bottom:8px;display:block;max-height:180px;object-fit:cover" alt="Comprobante"></a>`:'<p style="font-size:12px;color:var(--ink-muted);margin-bottom:8px">Sin comprobante aún</p>'}
+          <label style="display:flex;align-items:center;gap:8px;border:1.5px dashed var(--border-strong);border-radius:10px;padding:10px 14px;cursor:pointer;font-size:12px;color:var(--ink-muted)">
+            <input type="file" accept="image/*" style="display:none" onchange="uploadHistoryReceipt(this,'${o.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            ${o.receipt_url?'Cambiar comprobante':'Subir comprobante'}
+          </label>
+        </div>`:''}
         ${o.status==='cancelled' && o.internal_note?`
           <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;color:#991b1b">
             <strong>Pedido cancelado:</strong> ${o.internal_note}
@@ -2043,6 +2064,21 @@ async function loadOrderHistory() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function uploadHistoryReceipt(input, orderId) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('Subiendo comprobante...');
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: upErr } = await sb.storage.from('receipts').upload(path, file, { contentType: file.type });
+  if (upErr) { showToast('Error al subir la imagen'); return; }
+  const { data: urlData } = sb.storage.from('receipts').getPublicUrl(path);
+  const { error: updErr } = await sb.from('orders').update({ receipt_url: urlData.publicUrl }).eq('id', orderId);
+  if (updErr) { showToast('Error al guardar el comprobante'); return; }
+  showToast('Comprobante actualizado ✓');
+  loadOrderHistory();
 }
 
 async function savePhone() {
