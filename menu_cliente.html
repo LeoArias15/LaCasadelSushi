@@ -951,7 +951,8 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
       <p class="modal-sub" style="margin-bottom:24px;">Bienvenido de vuelta</p>
       <div class="profile-section">
         <span class="profile-label">Teléfono</span>
-        <div class="profile-value" id="profile-phone-display">—</div>
+        <input class="form-input" id="profile-phone-input" type="tel" placeholder="33 1234 5678">
+        <button class="btn-primary" style="margin-top:12px" id="btn-save-phone">Guardar teléfono</button>
       </div>
       <div class="profile-section">
         <span class="profile-label">Dirección guardada</span>
@@ -1922,7 +1923,7 @@ function updateProfileModal() {
   document.getElementById('profile-logged-in').classList.toggle('hidden', !loggedIn);
   if (loggedIn && state.profile) {
     document.getElementById('profile-name-display').textContent = state.profile.name || 'Mi cuenta';
-    document.getElementById('profile-phone-display').textContent = state.profile.phone || '—';
+    document.getElementById('profile-phone-input').value = state.profile.phone || '';
     loadOrderHistory();
   }
 }
@@ -1994,6 +1995,14 @@ async function loadOrderHistory() {
       </div>
     </div>`;
   }).join('');
+}
+
+async function savePhone() {
+  if (!state.user) return;
+  const phone = document.getElementById('profile-phone-input').value.trim();
+  await sb.from('profiles').update({ phone }).eq('id', state.user.id);
+  if (state.profile) state.profile.phone = phone;
+  showToast('Teléfono guardado ✓');
 }
 
 async function saveAddress() {
@@ -2092,6 +2101,7 @@ function bindEvents() {
   document.getElementById('profile-modal').addEventListener('click', e => { if(e.target.id==='profile-modal') closeModal('profile-modal'); });
   document.getElementById('btn-open-auth').onclick = () => { closeModal('profile-modal'); openModal('auth-modal'); };
   document.getElementById('btn-logout').onclick = async () => { await sb.auth.signOut(); closeModal('profile-modal'); showToast('Sesión cerrada'); };
+  document.getElementById('btn-save-phone').onclick = savePhone;
   document.getElementById('btn-save-address').onclick = saveAddress;
 
   // Product modal
