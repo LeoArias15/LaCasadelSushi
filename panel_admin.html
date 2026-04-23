@@ -803,6 +803,17 @@ function startClock() {
   const el = document.getElementById('topbar-clock');
   function tick() { el.textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',weekday:'short',day:'numeric',month:'short'}); }
   tick(); setInterval(tick, 1000);
+  scheduleMidnightRefresh();
+}
+
+function scheduleMidnightRefresh() {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  const msUntilMidnight = midnight - now;
+  setTimeout(() => {
+    renderOrders();
+    scheduleMidnightRefresh();
+  }, msUntilMidnight);
 }
 
 // ── DATA ──
@@ -987,8 +998,12 @@ function renderOrders() {
   const board = document.getElementById('kanban-board');
   board.className = 'kanban'; board.innerHTML = '';
   COLUMNS.forEach(col => {
-    const orders = state.orders.filter(o => col.key==='pending' ? (o.status==='pending'||o.status==='confirmed') : o.status===col.key)
-      .sort((a,b) => (b.priority_score||0)-(a.priority_score||0));
+    const todayStr = new Date().toDateString();
+    const orders = state.orders.filter(o => {
+      if (col.key === 'pending') return o.status === 'pending' || o.status === 'confirmed';
+      if (col.key === 'delivered') return o.status === 'delivered' && new Date(o.created_at).toDateString() === todayStr;
+      return o.status === col.key;
+    }).sort((a,b) => (b.priority_score||0)-(a.priority_score||0));
     const colEl = document.createElement('div');
     colEl.className = 'kanban-col';
     colEl.innerHTML = `<div class="kanban-header"><span class="kanban-dot" style="background:${col.color}"></span><span class="kanban-col-title" style="color:${col.color}">${col.label}</span><span class="kanban-count">${orders.length}</span></div><div class="kanban-body" id="col-${col.key}"></div>`;
