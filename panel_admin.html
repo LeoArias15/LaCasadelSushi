@@ -390,7 +390,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
       <div class="stats-grid" id="stats-grid"></div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;">
         <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:16px;">Pedidos recientes</div>
-        <table class="table"><thead><tr><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Hora</th></tr></thead><tbody id="recent-orders-table"></tbody></table>
+        <table class="table"><thead><tr><th>Número</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Hora</th></tr></thead><tbody id="recent-orders-table"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:20px">Sin pedidos hoy</td></tr></tbody></table>
       </div>
     </div>
 
@@ -1115,6 +1115,13 @@ function openOrderModal(orderId) {
       <div class="detail-row"><span class="detail-key">Método</span><span class="detail-val">${PAYMENT_LABELS[o.payment_method]||'Efectivo'}</span></div>
     </div>
     ${o.points_earned?`<div class="detail-section"><div class="detail-title">Puntos otorgados</div><p style="font-size:16px;color:var(--gold);font-weight:500">+${o.points_earned} puntos</p></div>`:''}${o.notes?`<div class="detail-section"><div class="detail-title">Notas del cliente</div><p style="font-size:13px;color:var(--text2)">${o.notes}</p></div>`:''}
+    ${o.payment_method === 'transfer' ? `
+    <div class="detail-section">
+      <div class="detail-title">Comprobante de transferencia</div>
+      ${o.receipt_url
+        ? `<a href="${o.receipt_url}" target="_blank" rel="noopener"><img src="${o.receipt_url}" style="width:100%;border-radius:8px;margin-top:8px;cursor:zoom-in;display:block" alt="Comprobante"></a>`
+        : `<p style="font-size:13px;color:var(--text2);margin-top:6px">Sin comprobante adjunto</p>`}
+    </div>` : ''}
     <div class="detail-section">
       <div class="detail-title">Nota interna</div>
       <textarea class="note-box" id="internal-note-input" placeholder="Ej: Cliente difícil de ubicar, llamar antes de salir...">${savedNote}</textarea>
@@ -1149,25 +1156,33 @@ document.getElementById('order-modal').onclick = e => { if(e.target.id==='order-
 
 // ── DASHBOARD ──
 function renderDashboard() {
+  const todayStr = new Date().toDateString();
   const today = new Date().toISOString().split('T')[0];
-  const todayOrders = state.orders.filter(o=>o.created_at.startsWith(today));
-  const revenue = todayOrders.reduce((s,o)=>s+(o.status!=='cancelled'?o.total:0),0);
-  const pending = state.orders.filter(o=>['pending','confirmed','preparing','ready'].includes(o.status)).length;
-  const delivered = state.orders.filter(o=>o.status==='delivered').length;
+  const todayOrders = state.orders.filter(o => new Date(o.created_at).toDateString() === todayStr);
+  const revenue = todayOrders.reduce((s,o) => s + (o.status !== 'cancelled' ? o.total : 0), 0);
+  const pending = state.orders.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status)).length;
+  const delivered = todayOrders.filter(o => o.status === 'delivered').length;
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card gold"><div class="stat-label">Ventas hoy</div><div class="stat-value">$${revenue.toFixed(0)}</div><div class="stat-sub">${todayOrders.length} pedidos</div></div>
     <div class="stat-card"><div class="stat-label">Activos</div><div class="stat-value">${pending}</div><div class="stat-sub">En proceso</div></div>
     <div class="stat-card green"><div class="stat-label">Entregados hoy</div><div class="stat-value">${delivered}</div><div class="stat-sub">Completados</div></div>
     <div class="stat-card"><div class="stat-label">Total pedidos</div><div class="stat-value">${state.orders.length}</div><div class="stat-sub">Histórico</div></div>
   `;
-  document.getElementById('recent-orders-table').innerHTML = state.orders.slice(0,10).map(o=>`
+  document.getElementById('recent-orders-table').innerHTML = todayOrders.slice(0,10).map(o => {
+    const fecha = new Date(o.created_at);
+    const esHoy = fecha.toDateString() === todayStr;
+    const fechaLabel = esHoy
+      ? fecha.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'})
+      : fecha.toLocaleDateString('es-MX', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+    return `
     <tr style="cursor:pointer" onclick="openOrderModal('${o.id}')">
       <td style="color:var(--gold)">${o.order_number}</td>
       <td>${o.guest_name||'Cliente registrado'}</td>
       <td style="font-family:var(--ff-display);font-size:16px">$${o.total.toFixed(0)}</td>
       <td><span class="pill" style="background:var(--surface3);color:var(--text2)">${STATUS_LABELS[o.status]||o.status}</span></td>
-      <td style="color:var(--text3)">${new Date(o.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})}</td>
-    </tr>`).join('');
+      <td style="color:var(--text3)">${fechaLabel}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ── REPORTS ──
