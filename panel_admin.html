@@ -818,7 +818,7 @@ function scheduleMidnightRefresh() {
 
 // ── DATA ──
 async function loadOrders() {
-  const { data } = await sb.from('orders').select('*,order_items(*)').order('created_at',{ascending:false}).limit(200);
+  const { data } = await sb.from('orders').select('*,order_items(*),profiles(name,phone)').order('created_at',{ascending:false}).limit(200);
   state.orders = data || [];
   updateNewOrdersBadge();
 }
@@ -1035,8 +1035,8 @@ function createOrderCard(o) {
   const card = document.createElement('div');
   const priority = o.priority_score>=80?'high':o.priority_score>=50?'med':'low';
   card.className = `order-card priority-${priority}`;
-  const customerName = o.guest_name || 'Cliente registrado';
-  const phone = o.guest_phone || '';
+  const customerName = o.guest_name || o.profiles?.name || 'Sin nombre';
+  const phone = o.guest_phone || o.profiles?.phone || '';
   const itemsText = o.order_items?.slice(0,2).map(i=>`${i.quantity}x ${i.product_name}`).join(', ')+(o.order_items?.length>2?'...':'');
   const payClass = {cash:'pay-cash',transfer:'pay-transfer',mercadopago:'pay-mp'}[o.payment_method]||'pay-cash';
   const typeClass = o.delivery_type==='asap'?'asap-badge':'scheduled-badge';
@@ -1090,7 +1090,7 @@ function openOrderModal(orderId) {
   ).join('');
 
   // Phone — from guest_phone or from profile
-  const phone = o.guest_phone || '';
+  const phone = o.guest_phone || o.profiles?.phone || '';
   const phoneHtml = phone
     ? `<a href="tel:${phone}" class="call-btn" style="margin-top:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81 19.79 19.79 0 01.02 2.18 2 2 0 012 .02h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg> Llamar a ${phone}</a>`
     : `<span style="font-size:12px;color:var(--text3)">Sin teléfono registrado</span>`;
@@ -1115,7 +1115,7 @@ function openOrderModal(orderId) {
     </div>
     <div class="detail-section">
       <div class="detail-title">Cliente y contacto</div>
-      <div class="detail-row"><span class="detail-key">Nombre</span><span class="detail-val">${o.guest_name||'Cliente registrado'}</span></div>
+      <div class="detail-row"><span class="detail-key">Nombre</span><span class="detail-val">${o.guest_name || o.profiles?.name || 'Sin nombre'}</span></div>
       ${phone?`<div class="detail-row"><span class="detail-key">Teléfono</span><span class="detail-val">${phone}</span></div>`:''}
       <div style="margin-top:10px">${phoneHtml}</div>
     </div>
@@ -1202,7 +1202,7 @@ function renderDashboard() {
     return `
     <tr style="cursor:pointer" onclick="openOrderModal('${o.id}')">
       <td style="color:var(--gold)">${o.order_number}</td>
-      <td>${o.guest_name||'Cliente registrado'}</td>
+      <td>${o.guest_name || o.profiles?.name || 'Sin nombre'}</td>
       <td style="font-family:var(--ff-display);font-size:16px">$${o.total.toFixed(0)}</td>
       <td><span class="pill" style="background:var(--surface3);color:var(--text2)">${STATUS_LABELS[o.status]||o.status}</span></td>
       <td style="color:var(--text3)">${fechaLabel}</td>
@@ -1273,8 +1273,8 @@ function renderReport() {
     ? orders.map(o=>`
       <tr style="cursor:pointer" onclick="openOrderModal('${o.id}')">
         <td style="color:var(--gold)">${o.order_number}</td>
-        <td>${o.guest_name||'Cliente reg.'}</td>
-        <td style="color:var(--green)">${o.guest_phone||'—'}</td>
+        <td>${o.guest_name || o.profiles?.name || 'Sin nombre'}</td>
+        <td style="color:var(--green)">${o.guest_phone || o.profiles?.phone || '—'}</td>
         <td style="color:var(--text2);font-size:12px">${o.address_line}${o.address_colonia?', '+o.address_colonia:''}</td>
         <td style="font-family:var(--ff-display);font-size:16px">$${o.total.toFixed(0)}</td>
         <td>${PAYMENT_LABELS[o.payment_method]||'—'}</td>
@@ -1293,8 +1293,8 @@ function exportCSV() {
   const headers = ['Número','Cliente','Teléfono','Dirección','Colonia','Subtotal','Descuento','Total','Método pago','Estado','Fecha','Hora','Notas'];
   const rows = orders.map(o => [
     o.order_number,
-    o.guest_name||'Cliente registrado',
-    o.guest_phone||'',
+    o.guest_name || o.profiles?.name || 'Sin nombre',
+    o.guest_phone || o.profiles?.phone || '',
     o.address_line||'',
     o.address_colonia||'',
     o.subtotal.toFixed(2),

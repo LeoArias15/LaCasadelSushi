@@ -1938,7 +1938,7 @@ async function placeOrder() {
 
   const orderData = {
     user_id: state.user?.id || null,
-    guest_name: !state.user ? document.getElementById('checkout-name').value : null,
+    guest_name: state.user ? (state.profile?.name || null) : document.getElementById('checkout-name').value,
     guest_phone: checkoutPhone,
     status: 'pending',
     delivery_type: state.deliveryType,
