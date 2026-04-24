@@ -1183,7 +1183,6 @@ document.getElementById('order-modal').onclick = e => { if(e.target.id==='order-
 // ── DASHBOARD ──
 function renderDashboard() {
   const todayStr = new Date().toDateString();
-  const today = new Date().toISOString().split('T')[0];
   const todayOrders = state.orders.filter(o => new Date(o.created_at).toDateString() === todayStr);
   const revenue = todayOrders.reduce((s,o) => s + (o.status !== 'cancelled' ? o.total : 0), 0);
   const pending = state.orders.filter(o => ['pending','confirmed','preparing','ready'].includes(o.status)).length;
@@ -1212,8 +1211,13 @@ function renderDashboard() {
 }
 
 // ── REPORTS ──
+function localDateStr(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
 function setToday() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr(new Date());
   document.getElementById('report-from').value = today;
   document.getElementById('report-to').value = today;
 }
@@ -1221,8 +1225,8 @@ function setThisWeek() {
   const now = new Date();
   const day = now.getDay();
   const monday = new Date(now); monday.setDate(now.getDate() - (day===0?6:day-1));
-  document.getElementById('report-from').value = monday.toISOString().split('T')[0];
-  document.getElementById('report-to').value = now.toISOString().split('T')[0];
+  document.getElementById('report-from').value = localDateStr(monday);
+  document.getElementById('report-to').value = localDateStr(now);
 }
 
 async function loadReport() {
@@ -1230,8 +1234,9 @@ async function loadReport() {
   const to = document.getElementById('report-to').value;
   if (!from || !to) return;
 
-  const fromDt = from + 'T00:00:00';
-  const toDt = to + 'T23:59:59';
+  // Convert local midnight → UTC so Supabase filter matches local day correctly
+  const fromDt = new Date(from + 'T00:00:00').toISOString();
+  const toDt   = new Date(to   + 'T23:59:59').toISOString();
 
   const { data } = await sb.from('orders')
     .select('*,order_items(*)')
