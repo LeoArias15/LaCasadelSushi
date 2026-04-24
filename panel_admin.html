@@ -305,6 +305,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
   .modal-box,.modal-box.wide{width:calc(100vw - 24px);max-height:95vh;}
   .client-table-wrapper{overflow-x:auto;}
 }
+
+.mo-product-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  font-size:13px;cursor:default;
+}
+.mo-product-item:last-child{border-bottom:none;}
+.mo-product-name{font-weight:500;color:var(--text);flex:1;}
+.mo-product-price{color:var(--text2);margin-right:12px;font-family:var(--ff-display);font-size:15px;}
+.mo-qty-wrap{display:flex;align-items:center;gap:6px;}
+.mo-qty-btn{
+  width:26px;height:26px;border-radius:50%;border:1px solid var(--border2);
+  background:transparent;color:var(--text);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.mo-qty-btn:hover{background:var(--surface3);}
+.mo-qty-num{min-width:18px;text-align:center;font-size:13px;font-weight:500;}
+.mo-cart-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.mo-cart-item:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -377,6 +399,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
     <span class="topbar-title" id="topbar-title">Pedidos en tiempo real</span>
     <div class="topbar-right">
       <span id="topbar-clock" style="font-size:13px;color:var(--text2)"></span>
+      <button class="btn-add" onclick="openManualOrder()" style="font-size:12px;padding:8px 14px">+ Pedido manual</button>
       <span id="topbar-status" style="font-size:12px;padding:4px 12px;border-radius:12px;"></span>
     </div>
   </div>
@@ -672,6 +695,80 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
         <button class="btn-secondary" onclick="closeRewardModal()">Cancelar</button>
         <button class="btn-gold" style="flex:1" id="btn-save-reward">Guardar recompensa</button>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- MANUAL ORDER MODAL -->
+<div class="modal-overlay" id="manual-order-modal" style="align-items:flex-start;padding-top:20px">
+  <div class="modal-box wide" style="width:680px;max-height:92vh;overflow-y:auto">
+    <div class="modal-head" style="position:sticky;top:0;z-index:10;background:var(--surface)">
+      <span class="modal-head-title">Nuevo pedido manual</span>
+      <button class="modal-close" onclick="closeManualOrder()">✕</button>
+    </div>
+    <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+      <!-- LEFT: Products -->
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:12px">Seleccionar productos</div>
+        <input id="mo-search" class="search-input" placeholder="Buscar producto..." style="width:100%;margin-bottom:12px" oninput="filterManualProducts(this.value)">
+        <div id="mo-products-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r)"></div>
+      </div>
+
+      <!-- RIGHT: Order details -->
+      <div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:12px">Carrito</div>
+        <div id="mo-cart" style="min-height:80px;margin-bottom:16px;border:1px solid var(--border);border-radius:var(--r);padding:10px">
+          <p style="font-size:13px;color:var(--text3);text-align:center;padding:16px 0">Sin productos</p>
+        </div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:10px">Datos del cliente</div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Nombre</label>
+          <input id="mo-name" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none" placeholder="Nombre del cliente">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Teléfono</label>
+          <input id="mo-phone" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none" placeholder="33 1234 5678">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Dirección</label>
+          <input id="mo-address" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none" placeholder="Calle y número">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Colonia</label>
+          <input id="mo-colonia" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none" placeholder="Colonia">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Entrega</label>
+          <select id="mo-delivery" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none">
+            <option value="asap">Lo antes posible</option>
+            <option value="scheduled">Hora programada</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Método de pago</label>
+          <select id="mo-payment" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none">
+            <option value="cash">Efectivo</option>
+            <option value="transfer">Transferencia</option>
+            <option value="mercadopago">Mercado Pago</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label>Notas</label>
+          <textarea id="mo-notes" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none;resize:none;height:60px" placeholder="Instrucciones especiales..."></textarea>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:4px">
+            <span>Subtotal</span><span id="mo-subtotal">$0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:16px;font-family:var(--ff-display)">
+            <span>Total</span><span id="mo-total">$0</span>
+          </div>
+        </div>
+        <button class="btn-gold" style="width:100%" id="mo-submit">Confirmar pedido</button>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1775,6 +1872,145 @@ async function deleteReward(id) {
   renderRewards(); showToast('Recompensa eliminada');
 }
 
+
+
+// ── MANUAL ORDER ──
+let moCart = [];
+
+function openManualOrder() {
+  moCart = [];
+  ['mo-name','mo-phone','mo-address','mo-colonia','mo-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('mo-delivery').value = 'asap';
+  document.getElementById('mo-payment').value = 'cash';
+  renderMoProducts(state.products);
+  renderMoCart();
+  document.getElementById('manual-order-modal').classList.add('open');
+}
+
+function closeManualOrder() {
+  document.getElementById('manual-order-modal').classList.remove('open');
+}
+
+document.getElementById('manual-order-modal').onclick = e => {
+  if (e.target.id === 'manual-order-modal') closeManualOrder();
+};
+
+function filterManualProducts(q) {
+  const filtered = q
+    ? state.products.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) && p.available)
+    : state.products.filter(p => p.available);
+  renderMoProducts(filtered);
+}
+
+function renderMoProducts(prods) {
+  const list = document.getElementById('mo-products-list');
+  if (!prods.length) { list.innerHTML = '<p style="font-size:13px;color:var(--text3);text-align:center;padding:16px">Sin productos</p>'; return; }
+  list.innerHTML = prods.map(p => {
+    const item = moCart.find(i => i.id === p.id);
+    const qty = item?.quantity || 0;
+    return `<div class="mo-product-item">
+      <span class="mo-product-name">${p.name}</span>
+      <span class="mo-product-price">$${p.price.toFixed(0)}</span>
+      <div class="mo-qty-wrap">
+        <button class="mo-qty-btn" onclick="moChangeQty('${p.id}', ${p.price}, '${p.name.replace(/'/g,"\'")}', -1)">−</button>
+        <span class="mo-qty-num">${qty}</span>
+        <button class="mo-qty-btn" onclick="moChangeQty('${p.id}', ${p.price}, '${p.name.replace(/'/g,"\'")}', 1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function moChangeQty(id, price, name, delta) {
+  const idx = moCart.findIndex(i => i.id === id);
+  if (idx === -1) {
+    if (delta > 0) moCart.push({ id, name, price, quantity: 1 });
+  } else {
+    moCart[idx].quantity += delta;
+    if (moCart[idx].quantity <= 0) moCart.splice(idx, 1);
+  }
+  // Re-render products to update qty display
+  const q = document.getElementById('mo-search').value;
+  filterManualProducts(q);
+  renderMoCart();
+}
+
+function renderMoCart() {
+  const container = document.getElementById('mo-cart');
+  if (!moCart.length) {
+    container.innerHTML = '<p style="font-size:13px;color:var(--text3);text-align:center;padding:16px 0">Sin productos</p>';
+    document.getElementById('mo-subtotal').textContent = '$0';
+    document.getElementById('mo-total').textContent = '$0';
+    return;
+  }
+  container.innerHTML = moCart.map(i => `
+    <div class="mo-cart-item">
+      <span style="flex:1;color:var(--text)">${i.name}</span>
+      <span style="color:var(--text2);margin:0 10px">×${i.quantity}</span>
+      <span style="font-family:var(--ff-display);font-size:15px">$${(i.price*i.quantity).toFixed(0)}</span>
+    </div>`).join('');
+  const subtotal = moCart.reduce((s,i) => s + i.price*i.quantity, 0);
+  document.getElementById('mo-subtotal').textContent = '$' + subtotal.toFixed(0);
+  document.getElementById('mo-total').textContent = '$' + subtotal.toFixed(0);
+}
+
+document.getElementById('mo-submit').onclick = async () => {
+  if (!moCart.length) { showToast('Agrega al menos un producto'); return; }
+  const name = document.getElementById('mo-name').value.trim();
+  const address = document.getElementById('mo-address').value.trim();
+  if (!name) { showToast('Ingresa el nombre del cliente'); return; }
+  if (!address) { showToast('Ingresa la dirección'); return; }
+
+  const subtotal = moCart.reduce((s,i) => s + i.price*i.quantity, 0);
+  const base = state.settings?.delivery_base_minutes || 25;
+  const extra = Math.floor(state.orders.filter(o => ['pending','confirmed','preparing'].includes(o.status)).length / 3) * 10;
+  const estimatedMin = base + extra;
+
+  const btn = document.getElementById('mo-submit');
+  btn.disabled = true; btn.textContent = 'Creando pedido...';
+
+  const orderData = {
+    guest_name: name,
+    guest_phone: document.getElementById('mo-phone').value.trim() || null,
+    status: 'confirmed',
+    delivery_type: document.getElementById('mo-delivery').value,
+    address_line: address,
+    address_colonia: document.getElementById('mo-colonia').value.trim() || null,
+    subtotal,
+    discount_amount: 0,
+    total: subtotal,
+    payment_method: document.getElementById('mo-payment').value,
+    estimated_minutes: estimatedMin,
+    notes: document.getElementById('mo-notes').value.trim() || null,
+    priority_score: document.getElementById('mo-delivery').value === 'asap' ? 90 : 40
+  };
+
+  const { data: order, error } = await sb.from('orders').insert(orderData).select().single();
+  if (error) {
+    showToast('Error al crear pedido: ' + error.message);
+    btn.disabled = false; btn.textContent = 'Confirmar pedido';
+    return;
+  }
+
+  const items = moCart.map(i => ({
+    order_id: order.id,
+    product_id: i.id,
+    product_name: i.name,
+    product_price: i.price,
+    quantity: i.quantity,
+    subtotal: i.price * i.quantity
+  }));
+  await sb.from('order_items').insert(items);
+
+  btn.disabled = false; btn.textContent = 'Confirmar pedido';
+  closeManualOrder();
+  showToast(`Pedido ${order.order_number} creado ✓`);
+  await loadOrders();
+  renderOrders();
+  renderDashboard();
+};
 
 // ── CANCEL ORDER MODAL ──
 function openCancelModal(orderId) {
