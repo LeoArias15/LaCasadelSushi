@@ -994,6 +994,23 @@ const COLUMNS = [
 const STATUS_LABELS = {pending:'Pendiente',confirmed:'Confirmado',preparing:'Preparando',ready:'Listo',delivering:'En camino',delivered:'Entregado',cancelled:'Cancelado'};
 const PAYMENT_LABELS = {cash:'Efectivo',transfer:'Transferencia',mercadopago:'Mercado Pago'};
 
+// Parse scheduled_at as local time (stored without timezone, Supabase adds +00 incorrectly)
+function parseLocalTime(str) {
+  if (!str) return null;
+  // Strip timezone suffix so JS parses it as local, not UTC
+  return new Date(str.replace(/([+-]\d{2}:?\d{2}|Z)$/, '').replace(' ', 'T'));
+}
+function fmtScheduled(str) {
+  const d = parseLocalTime(str);
+  if (!d || isNaN(d)) return 'Programado';
+  return d.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+}
+function fmtScheduledFull(str) {
+  const d = parseLocalTime(str);
+  if (!d || isNaN(d)) return 'Programado';
+  return d.toLocaleString('es-MX', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+}
+
 function renderOrders() {
   const board = document.getElementById('kanban-board');
   board.className = 'kanban'; board.innerHTML = '';
@@ -1023,7 +1040,7 @@ function createOrderCard(o) {
   const itemsText = o.order_items?.slice(0,2).map(i=>`${i.quantity}x ${i.product_name}`).join(', ')+(o.order_items?.length>2?'...':'');
   const payClass = {cash:'pay-cash',transfer:'pay-transfer',mercadopago:'pay-mp'}[o.payment_method]||'pay-cash';
   const typeClass = o.delivery_type==='asap'?'asap-badge':'scheduled-badge';
-  const typeText = o.delivery_type==='asap'?'ASAP':`${o.scheduled_at?new Date(o.scheduled_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}):'Programado'}`;
+  const typeText = o.delivery_type==='asap'?'ASAP':fmtScheduled(o.scheduled_at);
   const elapsed = Math.floor((Date.now()-new Date(o.created_at))/60000);
   card.innerHTML = `
     <div class="order-card-top"><span class="order-num">${o.order_number}</span><span class="order-time-badge ${typeClass}">${typeText}</span></div>
@@ -1105,6 +1122,7 @@ function openOrderModal(orderId) {
     <div class="detail-section">
       <div class="detail-title">Entrega</div>
       <div class="detail-row"><span class="detail-key">Tipo</span><span class="detail-val">${o.delivery_type==='asap'?'Lo antes posible':'Programado'}</span></div>
+      ${o.delivery_type==='scheduled'&&o.scheduled_at?'<div class="detail-row"><span class="detail-key">Hora programada</span><span class="detail-val" style="color:var(--gold);font-weight:500">'+fmtScheduledFull(o.scheduled_at)+'</span></div>':''}
       <div class="detail-row"><span class="detail-key">Dirección</span><span class="detail-val">${o.address_line}</span></div>
       ${o.address_colonia?`<div class="detail-row"><span class="detail-key">Colonia</span><span class="detail-val">${o.address_colonia}</span></div>`:''}
       ${o.address_references?`<div class="detail-row"><span class="detail-key">Referencias</span><span class="detail-val">${o.address_references}</span></div>`:''}
