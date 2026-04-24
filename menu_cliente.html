@@ -1131,11 +1131,13 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
             <label class="form-label">Referencias</label>
             <input class="form-input" id="checkout-refs" placeholder="Casa azul, frente al parque...">
           </div>
+          <div class="form-group">
+            <label class="form-label">Tu teléfono</label>
+            <input class="form-input" id="checkout-phone" type="tel" placeholder="33 1234 5678">
+          </div>
           <div class="form-group" id="guest-fields">
             <label class="form-label">Tu nombre</label>
             <input class="form-input" id="checkout-name" placeholder="Para identificar tu pedido">
-            <label class="form-label" style="margin-top:12px">Tu teléfono</label>
-            <input class="form-input" id="checkout-phone" type="tel" placeholder="33 1234 5678">
           </div>
         </div>
         <div class="checkout-section">
@@ -1335,6 +1337,11 @@ async function loadProfile() {
     document.getElementById('profile-address').value = data.address_line;
     document.getElementById('profile-colonia').value = data.address_colonia || '';
     document.getElementById('profile-refs').value = data.address_references || '';
+  }
+  // Pre-fill checkout phone
+  if (data?.phone) {
+    document.getElementById('checkout-phone').value = data.phone;
+    document.getElementById('profile-phone-input').value = data.phone;
   }
 }
 
@@ -1825,7 +1832,9 @@ function changeQty(productId, delta) {
 async function placeOrder() {
   const address = document.getElementById('checkout-address').value.trim();
   const colonia = document.getElementById('checkout-colonia').value.trim();
+  const checkoutPhone = document.getElementById('checkout-phone').value.trim();
   if (!address) { showToast('Ingresa tu dirección'); return; }
+  if (!checkoutPhone) { showToast('Ingresa tu número de teléfono'); return; }
 
   const paymentMethod = document.querySelector('.payment-option.selected')?.dataset.method || 'cash';
   const scheduledAt = state.deliveryType === 'scheduled'
@@ -1875,7 +1884,7 @@ async function placeOrder() {
   const orderData = {
     user_id: state.user?.id || null,
     guest_name: !state.user ? document.getElementById('checkout-name').value : null,
-    guest_phone: !state.user ? document.getElementById('checkout-phone').value : null,
+    guest_phone: checkoutPhone,
     status: 'pending',
     delivery_type: state.deliveryType,
     scheduled_at: scheduledAt,
@@ -1931,6 +1940,13 @@ async function placeOrder() {
     }));
     await sb.from('order_items').insert(items);
 
+    // Save phone to profile if user logged in and phone changed
+    if (state.user && checkoutPhone && checkoutPhone !== state.profile?.phone) {
+      await sb.from('profiles').update({ phone: checkoutPhone }).eq('id', state.user.id);
+      if (state.profile) state.profile.phone = checkoutPhone;
+      document.getElementById('profile-phone-input').value = checkoutPhone;
+    }
+
     // Deduct points from profile and record individual redemptions
     if (state.user && totalPointsSpent > 0) {
       const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
@@ -1969,7 +1985,7 @@ async function placeOrder() {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    // Re-fill address from profile if available
+    // Re-fill address and phone from profile if available
     if (state.profile?.address_line) {
       const a = document.getElementById('checkout-address');
       const c = document.getElementById('checkout-colonia');
@@ -1977,6 +1993,10 @@ async function placeOrder() {
       if (a) a.value = state.profile.address_line;
       if (c) c.value = state.profile.address_colonia || '';
       if (r) r.value = state.profile.address_references || '';
+    }
+    if (state.profile?.phone) {
+      const p = document.getElementById('checkout-phone');
+      if (p) p.value = state.profile.phone;
     }
 
     // Reset delivery options UI
