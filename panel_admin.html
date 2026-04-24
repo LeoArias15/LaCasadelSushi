@@ -741,10 +741,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
         </div>
         <div class="form-group" style="margin-bottom:10px">
           <label>Entrega</label>
-          <select id="mo-delivery" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none">
+          <select id="mo-delivery" onchange="toggleMoScheduled()" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none">
             <option value="asap">Lo antes posible</option>
             <option value="scheduled">Hora programada</option>
           </select>
+        </div>
+        <div class="form-group" id="mo-scheduled-group" style="margin-bottom:10px;display:none">
+          <label>Hora programada</label>
+          <input type="datetime-local" id="mo-scheduled-time" style="width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none">
         </div>
         <div class="form-group" style="margin-bottom:10px">
           <label>Método de pago</label>
@@ -1877,6 +1881,18 @@ async function deleteReward(id) {
 // ── MANUAL ORDER ──
 let moCart = [];
 
+function toggleMoScheduled() {
+  const val = document.getElementById('mo-delivery').value;
+  const group = document.getElementById('mo-scheduled-group');
+  group.style.display = val === 'scheduled' ? 'block' : 'none';
+  if (val === 'scheduled') {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    document.getElementById('mo-scheduled-time').min = now.toISOString().slice(0,16);
+    document.getElementById('mo-scheduled-time').value = now.toISOString().slice(0,16);
+  }
+}
+
 function openManualOrder() {
   moCart = [];
   ['mo-name','mo-phone','mo-address','mo-colonia','mo-notes'].forEach(id => {
@@ -1884,6 +1900,7 @@ function openManualOrder() {
     if (el) el.value = '';
   });
   document.getElementById('mo-delivery').value = 'asap';
+  document.getElementById('mo-scheduled-group').style.display = 'none';
   document.getElementById('mo-payment').value = 'cash';
   renderMoProducts(state.products);
   renderMoCart();
@@ -1976,6 +1993,7 @@ document.getElementById('mo-submit').onclick = async () => {
     guest_phone: document.getElementById('mo-phone').value.trim() || null,
     status: 'confirmed',
     delivery_type: document.getElementById('mo-delivery').value,
+    scheduled_at: document.getElementById('mo-delivery').value === 'scheduled' ? document.getElementById('mo-scheduled-time').value : null,
     address_line: address,
     address_colonia: document.getElementById('mo-colonia').value.trim() || null,
     subtotal,
