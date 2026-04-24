@@ -935,7 +935,7 @@ function setupNav() {
       if (panel==='categories') renderCategories();
       if (panel==='settings') renderSettings();
       if (panel==='dashboard') renderDashboard();
-      if (panel==='reports') loadReport();
+      if (panel==='reports') { setReportMaxDate(); loadReport(); }
     };
   });
 }
@@ -1216,12 +1216,19 @@ function localDateStr(d) {
     String(d.getMonth()+1).padStart(2,'0') + '-' +
     String(d.getDate()).padStart(2,'0');
 }
+function setReportMaxDate() {
+  const today = localDateStr(new Date());
+  document.getElementById('report-from').max = today;
+  document.getElementById('report-to').max = today;
+}
 function setToday() {
+  setReportMaxDate();
   const today = localDateStr(new Date());
   document.getElementById('report-from').value = today;
   document.getElementById('report-to').value = today;
 }
 function setThisWeek() {
+  setReportMaxDate();
   const now = new Date();
   const day = now.getDay();
   const monday = new Date(now); monday.setDate(now.getDate() - (day===0?6:day-1));
