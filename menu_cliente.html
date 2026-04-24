@@ -216,6 +216,23 @@ body{
 }
 .auth-error.visible{display:block;}
 
+/* ── PASSWORD FIELD ── */
+.pw-wrap{position:relative;}
+.pw-wrap .form-input{padding-right:44px;}
+.pw-toggle{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;padding:4px;
+  color:var(--ink-muted);line-height:1;display:flex;align-items:center;
+}
+.pw-toggle svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.pw-strength-bar{height:4px;border-radius:4px;background:var(--border);margin-top:8px;overflow:hidden;}
+.pw-strength-fill{height:100%;border-radius:4px;width:0%;transition:width 0.3s,background 0.3s;}
+.pw-reqs{margin-top:8px;display:flex;flex-direction:column;gap:3px;}
+.pw-req{font-size:12px;color:var(--ink-muted);display:flex;align-items:center;gap:5px;}
+.pw-req::before{content:'✕';color:#c0392b;font-size:11px;flex-shrink:0;}
+.pw-req.ok{color:var(--ink-muted);}
+.pw-req.ok::before{content:'✓';color:#27ae60;}
+
 /* ── CATEGORIES NAV ── */
 .cat-nav{
   background:var(--paper);
@@ -907,7 +924,27 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
       </div>
       <div class="form-group">
         <label class="form-label">Contraseña</label>
-        <input class="form-input" id="reg-password" type="password" placeholder="Mínimo 6 caracteres">
+        <div class="pw-wrap">
+          <input class="form-input" id="reg-password" type="password" placeholder="Mínimo 6 caracteres" oninput="evalPasswordStrength()">
+          <button type="button" class="pw-toggle" id="pw-toggle-1" onclick="togglePw('reg-password','pw-toggle-1')" aria-label="Ver contraseña">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-strength-fill"></div></div>
+        <div class="pw-reqs">
+          <span class="pw-req" id="req-len">Mínimo 6 caracteres</span>
+          <span class="pw-req" id="req-letter">Al menos una letra</span>
+          <span class="pw-req" id="req-number">Al menos un número</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar contraseña</label>
+        <div class="pw-wrap">
+          <input class="form-input" id="reg-password-confirm" type="password" placeholder="Repite tu contraseña" oninput="evalPasswordStrength()">
+          <button type="button" class="pw-toggle" id="pw-toggle-2" onclick="togglePw('reg-password-confirm','pw-toggle-2')" aria-label="Ver contraseña">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <button class="btn-primary" id="btn-register">Crear mi cuenta</button>
       <p class="auth-toggle">¿Ya tienes cuenta? <a id="show-login">Inicia sesión</a></p>
@@ -1947,16 +1984,63 @@ async function handleLogin() {
   showToast('Bienvenido de vuelta');
 }
 
+const _eyeOpen = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const _eyeOff  = '<svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function togglePw(inputId, btnId) {
+  const inp = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  if (inp.type === 'password') { inp.type = 'text'; btn.innerHTML = _eyeOff; }
+  else { inp.type = 'password'; btn.innerHTML = _eyeOpen; }
+}
+
+function evalPasswordStrength() {
+  const pw = document.getElementById('reg-password').value;
+  const confirm = document.getElementById('reg-password-confirm').value;
+
+  const checks = {
+    len:    pw.length >= 6,
+    letter: /[A-Za-z]/.test(pw),
+    number: /[0-9]/.test(pw),
+  };
+  document.getElementById('req-len').classList.toggle('ok', checks.len);
+  document.getElementById('req-letter').classList.toggle('ok', checks.letter);
+  document.getElementById('req-number').classList.toggle('ok', checks.number);
+
+  const score = Object.values(checks).filter(Boolean).length;
+  const fill = document.getElementById('pw-strength-fill');
+  const pct   = score === 0 ? 0 : score === 1 ? 33 : score === 2 ? 66 : 100;
+  const color = score <= 1 ? '#c0392b' : score === 2 ? '#e67e22' : '#27ae60';
+  fill.style.width = pct + '%';
+  fill.style.background = color;
+
+  const confInp = document.getElementById('reg-password-confirm');
+  if (confirm.length > 0) {
+    confInp.style.borderColor = pw === confirm ? '#27ae60' : '#c0392b';
+  } else {
+    confInp.style.borderColor = '';
+  }
+}
+
 async function handleRegister() {
-  const name = document.getElementById('reg-name').value;
-  const phone = document.getElementById('reg-phone').value;
-  const email = document.getElementById('reg-email').value;
+  const name = document.getElementById('reg-name').value.trim();
+  const phone = document.getElementById('reg-phone').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
+  const confirm = document.getElementById('reg-password-confirm').value;
   const errEl = document.getElementById('auth-error-reg');
   errEl.classList.remove('visible');
 
-  if (!name || !email || password.length < 6) {
-    errEl.textContent = 'Por favor completa todos los campos (mínimo 6 caracteres en contraseña)';
+  if (!name || !email) {
+    errEl.textContent = 'Por favor completa todos los campos obligatorios.';
+    errEl.classList.add('visible'); return;
+  }
+  if (password.length < 6 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    errEl.textContent = 'La contraseña debe tener mínimo 6 caracteres, una letra y un número.';
+    errEl.classList.add('visible'); return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'Las contraseñas no coinciden.';
     errEl.classList.add('visible'); return;
   }
 
