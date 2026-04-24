@@ -1218,14 +1218,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const WHATSAPP_NUMBER = '523323286466'; // formato internacional sin +
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    flowType: 'pkce',
-    detectSessionInUrl: true,
-    persistSession: true,
-    autoRefreshToken: true
-  }
-});
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ═══════════════════════════════════════════════
 // STATE
@@ -1248,11 +1241,6 @@ let state = {
 // INIT
 // ═══════════════════════════════════════════════
 async function init() {
-  // Clean OAuth tokens from URL immediately for security
-  if (window.location.hash || window.location.search.includes('access_token')) {
-    history.replaceState(null, '', window.location.pathname);
-  }
-
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     state.user = session.user;
@@ -1271,10 +1259,6 @@ async function init() {
       await loadProfile();
       renderLoyalty();
       updateProfileModal();
-      closeModal('auth-modal');
-      if (session.user.app_metadata?.provider === 'google') {
-        showToast('¡Bienvenido! Sesión iniciada con Google 🎋');
-      }
     }
     if (event === 'SIGNED_OUT') {
       state.user = null;
@@ -2034,7 +2018,9 @@ async function placeOrder() {
       }
     }
 
-    // Show confirmation
+    // Show confirmation - disable backdrop so menu stays accessible
+    const backdrop = document.getElementById('cart-backdrop');
+    if (backdrop) backdrop.style.pointerEvents = 'none';
     document.getElementById('cart-step-2').classList.add('hidden');
     document.getElementById('cart-step-3').classList.remove('hidden');
     document.getElementById('confirm-number').textContent = order.order_number;
@@ -2196,7 +2182,7 @@ function showAuthView(viewId) {
 async function handleGoogleAuth() {
   await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: 'https://lacasadelsushi.vercel.app/menu_cliente.html' }
+    options: { redirectTo: window.location.href }
   });
 }
 
@@ -2269,8 +2255,7 @@ async function loadOrderHistory() {
           <div style="font-family:var(--ff-display);font-size:20px">$${o.total.toFixed(0)}</div>
         </div>
         ${o.address_line?`<div class="order-hist-address">${o.address_line}${o.address_colonia?', '+o.address_colonia:''}</div>`:''}
-        ${o.notes?`<div class="order-hist-address" style="margin-top:4px">📝 ${o.notes}</div>`:''}
-        ${o.status==='cancelled'?`<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;font-size:13px;color:#991b1b">❌ ${o.internal_note?`<strong>Cancelado:</strong> ${o.internal_note}`:'Pedido cancelado por el negocio'}</div>`:''}
+        ${o.notes?`<div class="order-hist-address" style="margin-top:4px">${o.notes}</div>`:''}
         ${o.payment_method==='transfer'?`
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
           <div style="font-size:12px;color:var(--ink-muted);margin-bottom:8px">Comprobante de transferencia</div>
@@ -2346,7 +2331,7 @@ async function saveAddress() {
 // ═══════════════════════════════════════════════
 function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow='hidden'; }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); document.body.style.overflow=''; }
-function openCart() { document.getElementById('cart-drawer').classList.add('open'); document.body.style.overflow='hidden'; renderCart(); }
+function openCart() { const b=document.getElementById('cart-backdrop'); if(b) b.style.pointerEvents=''; document.getElementById('cart-drawer').classList.add('open'); document.body.style.overflow='hidden'; renderCart(); }
 function closeCart() { document.getElementById('cart-drawer').classList.remove('open'); document.body.style.overflow=''; }
 
 function showToast(msg) {
@@ -2454,11 +2439,38 @@ function bindEvents() {
   };
   document.getElementById('btn-place-order').onclick = placeOrder;
   document.getElementById('btn-new-order').onclick = () => {
-    document.getElementById('cart-step-0').classList.add('hidden');
-    document.getElementById('cart-step-2').classList.add('hidden');
-    document.getElementById('cart-step-3').classList.add('hidden');
-    document.getElementById('cart-step-1').classList.remove('hidden');
-    closeCart();
+    // Full reset - close drawer completely first
+    const drawer = document.getElementById('cart-drawer');
+    drawer.classList.remove('open');
+    document.body.style.overflow = '';
+
+    // Reset all steps
+    ['cart-step-0','cart-step-2','cart-step-3'].forEach(id => {
+      document.getElementById(id)?.classList.add('hidden');
+    });
+    document.getElementById('cart-step-1')?.classList.remove('hidden');
+
+    // Clear cart state
+    state.cart = [];
+    state.appliedRewards = [];
+    state.deliveryType = 'asap';
+
+    // Reset delivery UI
+    document.getElementById('opt-asap')?.classList.add('selected');
+    document.getElementById('opt-scheduled')?.classList.remove('selected');
+    document.getElementById('scheduled-time-group')?.classList.add('hidden');
+
+    // Reset payment selection to first option
+    document.querySelectorAll('.payment-option').forEach((el, i) => {
+      el.classList.toggle('selected', i === 0);
+    });
+
+    // Hide float button
+    document.getElementById('cart-float')?.classList.remove('visible');
+
+    // Re-render
+    renderCart();
+    renderMenu();
   };
 
   // Delivery type toggle
