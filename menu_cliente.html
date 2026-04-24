@@ -1834,6 +1834,7 @@ async function placeOrder() {
   const colonia = document.getElementById('checkout-colonia').value.trim();
   const checkoutPhone = document.getElementById('checkout-phone').value.trim();
   if (!address) { showToast('Ingresa tu dirección'); return; }
+  if (!colonia) { showToast('Ingresa tu colonia'); return; }
   if (!checkoutPhone) { showToast('Ingresa tu número de teléfono'); return; }
 
   const paymentMethod = document.querySelector('.payment-option.selected')?.dataset.method || 'cash';
