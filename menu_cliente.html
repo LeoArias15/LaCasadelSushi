@@ -487,6 +487,14 @@ body{
 .receipt-upload-btn.has-file{border-color:var(--green);color:var(--ink);}
 #receipt-preview{width:100%;border-radius:var(--r);margin-top:10px;display:none;max-height:200px;object-fit:cover;}
 [data-theme="dark"] .receipt-upload-btn{border-color:#3a3a3c;}
+.clabe-box{background:var(--paper);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;}
+.clabe-box-row{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.clabe-info{display:flex;flex-direction:column;gap:2px;}
+.clabe-number{font-size:16px;font-weight:600;letter-spacing:0.04em;color:var(--ink);}
+.clabe-bank{font-size:12px;color:var(--ink-muted);}
+.btn-copy-clabe{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:9px 14px;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--paper-card);color:var(--ink);font-size:13px;font-weight:500;cursor:pointer;transition:background 0.2s,border-color 0.2s;white-space:nowrap;}
+.btn-copy-clabe:hover{background:var(--paper);border-color:var(--ink-muted);}
+.btn-copy-clabe.copied{border-color:var(--green);color:var(--green);}
 
 /* ── ORDER CONFIRMATION ── */
 .confirm-screen{
@@ -1145,6 +1153,19 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
           <div class="payment-options" id="payment-options"></div>
         </div>
         <div class="form-group hidden" id="transfer-receipt-section">
+          <div class="clabe-box" id="clabe-box">
+            <div class="clabe-box-row">
+              <div class="clabe-info">
+                <span class="clabe-bank" id="clabe-bank-label">Transferencia</span>
+                <span class="clabe-number" id="clabe-number-display">—</span>
+                <span class="clabe-bank" id="clabe-accname-display"></span>
+              </div>
+              <button type="button" class="btn-copy-clabe" id="btn-copy-clabe" onclick="copyClabe()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                Copiar CLABE
+              </button>
+            </div>
+          </div>
           <label class="form-label">Comprobante de transferencia</label>
           <label class="receipt-upload-btn" id="receipt-upload-label">
             <input type="file" id="receipt-file" accept="image/*" style="display:none">
@@ -1557,6 +1578,7 @@ function renderPaymentOptions() {
       div.classList.add('selected');
       const rs = document.getElementById('transfer-receipt-section');
       if (rs) rs.classList.toggle('hidden', opt.id !== 'transfer');
+      if (opt.id === 'transfer') updateClabeBox();
     };
     container.appendChild(div);
   });
@@ -1573,6 +1595,38 @@ function renderPaymentOptions() {
       document.getElementById('receipt-preview-wrap').style.display = 'block';
     };
   }
+}
+
+function updateClabeBox() {
+  const s = state.settings;
+  const clabe = s?.transfer_clabe || '';
+  const bank  = s?.transfer_bank  || '';
+  const name  = s?.transfer_account_name || '';
+  document.getElementById('clabe-number-display').textContent = clabe || '—';
+  document.getElementById('clabe-bank-label').textContent = bank || 'Transferencia';
+  document.getElementById('clabe-accname-display').textContent = name;
+  document.getElementById('clabe-box').style.display = clabe ? '' : 'none';
+}
+
+async function copyClabe() {
+  const clabe = state.settings?.transfer_clabe || '';
+  if (!clabe) return;
+  try {
+    await navigator.clipboard.writeText(clabe);
+  } catch {
+    // fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = clabe; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const btn = document.getElementById('btn-copy-clabe');
+  btn.classList.add('copied');
+  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ¡Copiado!';
+  setTimeout(() => {
+    btn.classList.remove('copied');
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copiar CLABE';
+  }, 2500);
 }
 
 function clearReceipt() {
