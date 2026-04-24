@@ -2295,15 +2295,28 @@ async function uploadHistoryReceipt(input, orderId) {
 async function savePhone() {
   if (!state.user) return;
   const phone = document.getElementById('profile-phone-input').value.trim();
-  await sb.from('profiles').update({ phone }).eq('id', state.user.id);
+  const btn = document.getElementById('btn-save-phone');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const { error } = await sb.from('profiles').update({ phone }).eq('id', state.user.id);
+  btn.disabled = false; btn.textContent = 'Guardar teléfono';
+  if (error) { showToast('Error al guardar: ' + error.message); return; }
   if (state.profile) state.profile.phone = phone;
+  document.getElementById('checkout-phone').value = phone;
   showToast('Teléfono guardado ✓');
 }
 
 async function saveAddress() {
   if (!state.user) return;
-  const addr = { address_line: document.getElementById('profile-address').value, address_colonia: document.getElementById('profile-colonia').value, address_references: document.getElementById('profile-refs').value };
-  await sb.from('profiles').update(addr).eq('id', state.user.id);
+  const addr = {
+    address_line: document.getElementById('profile-address').value.trim(),
+    address_colonia: document.getElementById('profile-colonia').value.trim(),
+    address_references: document.getElementById('profile-refs').value.trim()
+  };
+  const btn = document.getElementById('btn-save-address');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const { error } = await sb.from('profiles').update(addr).eq('id', state.user.id);
+  btn.disabled = false; btn.textContent = 'Guardar dirección';
+  if (error) { showToast('Error al guardar: ' + error.message); return; }
   Object.assign(state.profile, addr);
   document.getElementById('checkout-address').value = addr.address_line;
   document.getElementById('checkout-colonia').value = addr.address_colonia;
