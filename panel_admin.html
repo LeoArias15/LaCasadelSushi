@@ -424,6 +424,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
       <div class="section-toolbar">
         <h2>Productos</h2>
         <input class="search-input" id="prod-search" placeholder="Buscar producto...">
+        <button class="btn-add" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text)" onclick="exportProducts()">⬇ Exportar</button>
         <button class="btn-add" id="btn-new-product">+ Nuevo producto</button>
       </div>
       <table class="table">
@@ -1847,6 +1848,32 @@ document.getElementById('btn-confirm-cancel').onclick = async () => {
   closeOrderModal();
   renderOrders();
 };
+
+
+// ── EXPORT PRODUCTS ──
+function exportProducts() {
+  if (!state.products.length) { showToast('No hay productos para exportar'); return; }
+  const headers = ['Nombre','Categoría','Precio','Puntos','Tiempo prep (min)','Disponible','Destacado','Descripción'];
+  const rows = state.products.map(p => [
+    p.name,
+    p.categories?.name || '—',
+    p.price.toFixed(2),
+    p.points || 0,
+    p.prep_time_min || 0,
+    p.available ? 'Sí' : 'No',
+    p.featured ? 'Sí' : 'No',
+    (p.description || '').replace(/,/g, ';')
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `productos_lacasadelsushi_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Productos exportados ✓');
+}
 
 // ── UTILS ──
 function showToast(msg) {
