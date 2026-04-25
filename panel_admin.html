@@ -1303,17 +1303,8 @@ function openEditOrder() {
   const o = state.currentOrder;
   if (!o) return;
 
-  // Build items rows
-  const itemsHtml = (o.order_items || []).map((it, idx) => `
-    <div class="edit-item-row" id="edit-item-row-${idx}">
-      <span class="edit-item-name">${it.product_name}</span>
-      <div class="edit-item-qty">
-        <button onclick="editItemQty(${idx},-1)">−</button>
-        <span id="edit-item-qty-${idx}">${it.quantity}</span>
-        <button onclick="editItemQty(${idx},1)">+</button>
-      </div>
-      <span style="font-size:13px;color:var(--text3);min-width:48px;text-align:right" id="edit-item-price-${idx}">$${it.subtotal.toFixed(0)}</span>
-    </div>`).join('');
+  window._editQtys = (o.order_items || []).map(it => ({ ...it }));
+  window._editNewItems = [];
 
   const el = document.createElement('div');
   el.className = 'edit-order-overlay';
@@ -1344,60 +1335,122 @@ function openEditOrder() {
         <label>Notas del cliente</label>
         <textarea id="edit-notes" rows="2" style="resize:vertical">${o.notes || ''}</textarea>
       </div>
+      <div class="edit-field-group" style="margin-bottom:4px">
+        <label>Productos en el pedido</label>
+        <div id="edit-existing-items"></div>
+      </div>
       <div class="edit-field-group" style="margin-bottom:8px">
-        <label>Productos</label>
-        ${itemsHtml}
+        <label>Agregar productos</label>
+        <input id="edit-prod-search" placeholder="Buscar producto..." style="margin-bottom:8px" oninput="renderEditProducts(this.value)">
+        <div id="edit-products-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
       </div>
       <div class="edit-order-footer">
         <button class="edit-cancel-btn" onclick="closeEditOrder()">Cancelar</button>
-        <button class="btn-save" onclick="saveOrderEdits('${o.id}')">Guardar cambios</button>
+        <button class="btn-save" id="edit-save-btn" onclick="saveOrderEdits('${o.id}')">Guardar cambios</button>
       </div>
     </div>`;
   document.body.appendChild(el);
   el.onclick = e => { if (e.target === el) closeEditOrder(); };
 
-  // Store mutable qty copy
-  window._editQtys = (o.order_items || []).map(it => ({ ...it }));
+  renderEditExistingItems();
+  renderEditProducts('');
 }
 
-function editItemQty(idx, delta) {
+function renderEditExistingItems() {
+  const container = document.getElementById('edit-existing-items');
+  if (!container) return;
+  const q = window._editQtys || [];
+  if (!q.length) { container.innerHTML = '<p style="font-size:12px;color:var(--text3);padding:4px 0">Sin productos</p>'; return; }
+  container.innerHTML = q.map((it, idx) => `
+    <div class="edit-item-row" id="edit-item-row-${idx}" style="${it.quantity===0?'opacity:0.4':''}">
+      <span class="edit-item-name">${it.product_name}</span>
+      <div class="edit-item-qty">
+        <button onclick="editExistingQty(${idx},-1)">−</button>
+        <span id="edit-item-qty-${idx}">${it.quantity}</span>
+        <button onclick="editExistingQty(${idx},1)">+</button>
+      </div>
+      <span style="font-size:13px;color:var(--text3);min-width:48px;text-align:right" id="edit-item-price-${idx}">$${it.subtotal.toFixed(0)}</span>
+    </div>`).join('');
+}
+
+function editExistingQty(idx, delta) {
   const q = window._editQtys;
   q[idx].quantity = Math.max(0, q[idx].quantity + delta);
-  q[idx].subtotal = q[idx].product_price * q[idx].quantity;
+  q[idx].subtotal = (q[idx].product_price || 0) * q[idx].quantity;
   document.getElementById(`edit-item-qty-${idx}`).textContent = q[idx].quantity;
   document.getElementById(`edit-item-price-${idx}`).textContent = '$' + q[idx].subtotal.toFixed(0);
   const row = document.getElementById(`edit-item-row-${idx}`);
   if (row) row.style.opacity = q[idx].quantity === 0 ? '0.4' : '1';
 }
 
+function renderEditProducts(query) {
+  const list = document.getElementById('edit-products-list');
+  if (!list) return;
+  const prods = query
+    ? state.products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    : state.products;
+  if (!prods.length) { list.innerHTML = '<p style="font-size:12px;color:var(--text3);padding:10px;text-align:center">Sin resultados</p>'; return; }
+  list.innerHTML = prods.map(p => {
+    const newItem = (window._editNewItems || []).find(i => i.product_id === p.id);
+    const qty = newItem ? newItem.quantity : 0;
+    return `<div class="mo-product-item" style="padding:8px 12px">
+      <span class="mo-product-name" style="font-size:13px">${p.name}</span>
+      <span class="mo-product-price" style="font-size:12px">$${p.price.toFixed(0)}</span>
+      <div class="mo-qty-wrap">
+        <button class="mo-qty-btn" onclick="editNewItemQty('${p.id}',${p.price},'${p.name.replace(/'/g,"\\'")}','${p.categories?.name||''}', -1)">−</button>
+        <span id="edit-new-qty-${p.id}">${qty}</span>
+        <button class="mo-qty-btn" onclick="editNewItemQty('${p.id}',${p.price},'${p.name.replace(/'/g,"\\'")}','${p.categories?.name||''}', 1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editNewItemQty(productId, price, name, category, delta) {
+  const arr = window._editNewItems;
+  const idx = arr.findIndex(i => i.product_id === productId);
+  if (idx === -1) {
+    if (delta > 0) arr.push({ product_id: productId, product_name: name, product_price: price, quantity: 1, subtotal: price });
+  } else {
+    arr[idx].quantity = Math.max(0, arr[idx].quantity + delta);
+    arr[idx].subtotal = arr[idx].quantity * price;
+    if (arr[idx].quantity === 0) arr.splice(idx, 1);
+  }
+  const span = document.getElementById(`edit-new-qty-${productId}`);
+  if (span) {
+    const newItem = arr.find(i => i.product_id === productId);
+    span.textContent = newItem ? newItem.quantity : 0;
+  }
+}
+
 async function saveOrderEdits(orderId) {
   const o = state.currentOrder;
-  const q = window._editQtys || [];
-  const btn = document.querySelector('#edit-order-overlay .btn-save');
+  const existing = window._editQtys || [];
+  const newItems = window._editNewItems || [];
+  const btn = document.getElementById('edit-save-btn');
   btn.disabled = true; btn.textContent = 'Guardando...';
 
-  // Update order fields
+  // Recalculate totals
+  const activeExisting = existing.filter(it => it.quantity > 0);
+  const existingSubtotal = activeExisting.reduce((s, it) => s + it.subtotal, 0);
+  const newSubtotal = existingSubtotal + newItems.reduce((s, it) => s + it.subtotal, 0);
+  const discAmt = o.subtotal > 0 ? (o.discount_amount / o.subtotal) * newSubtotal : 0;
+
   const updates = {
     guest_phone: document.getElementById('edit-phone').value.trim(),
     address_line: document.getElementById('edit-address').value.trim(),
     address_colonia: document.getElementById('edit-colonia').value.trim(),
     address_references: document.getElementById('edit-refs').value.trim(),
     notes: document.getElementById('edit-notes').value.trim(),
+    subtotal: newSubtotal,
+    discount_amount: Math.round(discAmt * 100) / 100,
+    total: Math.max(0, newSubtotal - discAmt),
   };
-
-  // Recalculate totals from edited quantities
-  const activeItems = q.filter(it => it.quantity > 0);
-  const newSubtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
-  const discAmt = o.subtotal > 0 ? (o.discount_amount / o.subtotal) * newSubtotal : 0;
-  updates.subtotal = newSubtotal;
-  updates.discount_amount = Math.round(discAmt * 100) / 100;
-  updates.total = Math.max(0, newSubtotal - discAmt);
 
   const { error: orderErr } = await sb.from('orders').update(updates).eq('id', orderId);
   if (orderErr) { showToast('Error: ' + orderErr.message); btn.disabled = false; btn.textContent = 'Guardar cambios'; return; }
 
-  // Update order_items quantities
-  for (const it of q) {
+  // Update / delete existing items
+  for (const it of existing) {
     if (it.quantity === 0) {
       await sb.from('order_items').delete().eq('id', it.id);
     } else {
@@ -1405,11 +1458,27 @@ async function saveOrderEdits(orderId) {
     }
   }
 
+  // Insert new items
+  if (newItems.length) {
+    await sb.from('order_items').insert(newItems.map(it => ({
+      order_id: orderId,
+      product_id: it.product_id,
+      product_name: it.product_name,
+      product_price: it.product_price,
+      quantity: it.quantity,
+      subtotal: it.subtotal,
+    })));
+  }
+
   // Reflect in local state
   const idx = state.orders.findIndex(x => x.id === orderId);
   if (idx !== -1) {
     Object.assign(state.orders[idx], updates);
-    state.orders[idx].order_items = activeItems;
+    const merged = [
+      ...activeExisting,
+      ...newItems.map(it => ({ ...it, product_id: it.product_id, notes: null }))
+    ];
+    state.orders[idx].order_items = merged;
     state.currentOrder = state.orders[idx];
   }
 
