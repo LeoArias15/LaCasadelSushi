@@ -235,6 +235,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
 .settings-card-title{font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text3);margin-bottom:16px;}
 .btn-save{padding:10px 24px;background:var(--gold);color:#000;border:none;border-radius:var(--r);font-family:var(--ff);font-size:13px;font-weight:600;cursor:pointer;margin-top:16px;}
 .btn-save:hover{opacity:0.88;}
+.edit-order-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
+.edit-order-box{background:var(--surface);border-radius:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.edit-order-head{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1;}
+.edit-order-head h3{font-size:15px;font-weight:600;margin:0;}
+.edit-field-group{padding:0 20px;margin-top:16px;}
+.edit-field-group label{display:block;font-size:12px;color:var(--text3);margin-bottom:4px;font-weight:500;}
+.edit-field-group input,.edit-field-group textarea{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;font-family:var(--ff);font-size:13px;color:var(--text);outline:none;box-sizing:border-box;}
+.edit-field-group input:focus,.edit-field-group textarea:focus{border-color:var(--gold);}
+.edit-order-footer{padding:16px 20px 20px;display:flex;gap:10px;}
+.edit-order-footer .btn-save{margin-top:0;flex:1;}
+.edit-cancel-btn{flex:1;padding:10px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);font-family:var(--ff);font-size:13px;cursor:pointer;color:var(--text2);}
+.edit-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.edit-item-name{flex:1;font-size:13px;}
+.edit-item-qty{display:flex;align-items:center;gap:6px;}
+.edit-item-qty button{width:26px;height:26px;border-radius:50%;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:14px;color:var(--text);display:flex;align-items:center;justify-content:center;}
+.edit-item-qty span{font-size:13px;min-width:18px;text-align:center;}
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
 .toggle-row-label{font-size:13px;color:var(--text);}
 .toggle-row-sub{font-size:11px;color:var(--text3);}
@@ -505,7 +521,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
   <div class="modal-box">
     <div class="modal-head">
       <span class="modal-head-title" id="modal-order-title">Pedido</span>
-      <button class="modal-close" onclick="closeOrderModal()">✕</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-save" style="margin-top:0;font-size:12px;padding:6px 12px" onclick="openEditOrder()">Editar pedido</button>
+        <button class="modal-close" onclick="closeOrderModal()">✕</button>
+      </div>
     </div>
     <div class="modal-body" id="modal-order-body"></div>
   </div>
@@ -1279,6 +1298,132 @@ async function updateOrderStatus(orderId, newStatus) {
 }
 
 function closeOrderModal() { document.getElementById('order-modal').classList.remove('open'); }
+
+function openEditOrder() {
+  const o = state.currentOrder;
+  if (!o) return;
+
+  // Build items rows
+  const itemsHtml = (o.order_items || []).map((it, idx) => `
+    <div class="edit-item-row" id="edit-item-row-${idx}">
+      <span class="edit-item-name">${it.product_name}</span>
+      <div class="edit-item-qty">
+        <button onclick="editItemQty(${idx},-1)">−</button>
+        <span id="edit-item-qty-${idx}">${it.quantity}</span>
+        <button onclick="editItemQty(${idx},1)">+</button>
+      </div>
+      <span style="font-size:13px;color:var(--text3);min-width:48px;text-align:right" id="edit-item-price-${idx}">$${it.subtotal.toFixed(0)}</span>
+    </div>`).join('');
+
+  const el = document.createElement('div');
+  el.className = 'edit-order-overlay';
+  el.id = 'edit-order-overlay';
+  el.innerHTML = `
+    <div class="edit-order-box">
+      <div class="edit-order-head">
+        <h3>Editar ${o.order_number}</h3>
+        <button onclick="closeEditOrder()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2)">✕</button>
+      </div>
+      <div class="edit-field-group" style="margin-top:16px">
+        <label>Teléfono</label>
+        <input id="edit-phone" value="${o.guest_phone || ''}">
+      </div>
+      <div class="edit-field-group">
+        <label>Calle y número</label>
+        <input id="edit-address" value="${o.address_line || ''}">
+      </div>
+      <div class="edit-field-group">
+        <label>Colonia</label>
+        <input id="edit-colonia" value="${o.address_colonia || ''}">
+      </div>
+      <div class="edit-field-group">
+        <label>Referencias</label>
+        <input id="edit-refs" value="${o.address_references || ''}">
+      </div>
+      <div class="edit-field-group">
+        <label>Notas del cliente</label>
+        <textarea id="edit-notes" rows="2" style="resize:vertical">${o.notes || ''}</textarea>
+      </div>
+      <div class="edit-field-group" style="margin-bottom:8px">
+        <label>Productos</label>
+        ${itemsHtml}
+      </div>
+      <div class="edit-order-footer">
+        <button class="edit-cancel-btn" onclick="closeEditOrder()">Cancelar</button>
+        <button class="btn-save" onclick="saveOrderEdits('${o.id}')">Guardar cambios</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.onclick = e => { if (e.target === el) closeEditOrder(); };
+
+  // Store mutable qty copy
+  window._editQtys = (o.order_items || []).map(it => ({ ...it }));
+}
+
+function editItemQty(idx, delta) {
+  const q = window._editQtys;
+  q[idx].quantity = Math.max(0, q[idx].quantity + delta);
+  q[idx].subtotal = q[idx].product_price * q[idx].quantity;
+  document.getElementById(`edit-item-qty-${idx}`).textContent = q[idx].quantity;
+  document.getElementById(`edit-item-price-${idx}`).textContent = '$' + q[idx].subtotal.toFixed(0);
+  const row = document.getElementById(`edit-item-row-${idx}`);
+  if (row) row.style.opacity = q[idx].quantity === 0 ? '0.4' : '1';
+}
+
+async function saveOrderEdits(orderId) {
+  const o = state.currentOrder;
+  const q = window._editQtys || [];
+  const btn = document.querySelector('#edit-order-overlay .btn-save');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  // Update order fields
+  const updates = {
+    guest_phone: document.getElementById('edit-phone').value.trim(),
+    address_line: document.getElementById('edit-address').value.trim(),
+    address_colonia: document.getElementById('edit-colonia').value.trim(),
+    address_references: document.getElementById('edit-refs').value.trim(),
+    notes: document.getElementById('edit-notes').value.trim(),
+  };
+
+  // Recalculate totals from edited quantities
+  const activeItems = q.filter(it => it.quantity > 0);
+  const newSubtotal = activeItems.reduce((s, it) => s + it.subtotal, 0);
+  const discAmt = o.subtotal > 0 ? (o.discount_amount / o.subtotal) * newSubtotal : 0;
+  updates.subtotal = newSubtotal;
+  updates.discount_amount = Math.round(discAmt * 100) / 100;
+  updates.total = Math.max(0, newSubtotal - discAmt);
+
+  const { error: orderErr } = await sb.from('orders').update(updates).eq('id', orderId);
+  if (orderErr) { showToast('Error: ' + orderErr.message); btn.disabled = false; btn.textContent = 'Guardar cambios'; return; }
+
+  // Update order_items quantities
+  for (const it of q) {
+    if (it.quantity === 0) {
+      await sb.from('order_items').delete().eq('id', it.id);
+    } else {
+      await sb.from('order_items').update({ quantity: it.quantity, subtotal: it.subtotal }).eq('id', it.id);
+    }
+  }
+
+  // Reflect in local state
+  const idx = state.orders.findIndex(x => x.id === orderId);
+  if (idx !== -1) {
+    Object.assign(state.orders[idx], updates);
+    state.orders[idx].order_items = activeItems;
+    state.currentOrder = state.orders[idx];
+  }
+
+  closeEditOrder();
+  openOrderModal(orderId);
+  renderOrders();
+  showToast('Pedido actualizado ✓');
+}
+
+function closeEditOrder() {
+  const el = document.getElementById('edit-order-overlay');
+  if (el) el.remove();
+  window._editQtys = null;
+}
 document.getElementById('order-modal').onclick = e => { if(e.target.id==='order-modal') closeOrderModal(); };
 
 // ── DASHBOARD ──
