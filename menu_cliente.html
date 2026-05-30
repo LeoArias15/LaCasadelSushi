@@ -2610,6 +2610,60 @@ function getFlavorColor(name) {
   return FLAVOR_COLORS[name.toLowerCase()] || FLAVOR_COLORS[k] || '#b0b0b0';
 }
 
+function buildIngredientSVG(flavor1, flavor2) {
+  const c1 = getFlavorColor(flavor1);
+  const c2 = flavor2 ? getFlavorColor(flavor2) : null;
+  const cx = 70, cy = 70, w = 140, h = 140;
+
+  let flavorRing;
+  if (!c2) {
+    flavorRing = `<circle cx="${cx}" cy="${cy}" r="62" fill="${c1}"/>`;
+  } else {
+    flavorRing = `
+      <clipPath id="spi-l"><rect x="0" y="0" width="${cx}" height="${h}"/></clipPath>
+      <clipPath id="spi-r"><rect x="${cx}" y="0" width="${cx}" height="${h}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="62" fill="${c1}" clip-path="url(#spi-l)"/>
+      <circle cx="${cx}" cy="${cy}" r="62" fill="${c2}" clip-path="url(#spi-r)"/>
+      <line x1="${cx}" y1="${cy-62}" x2="${cx}" y2="${cy+62}" stroke="rgba(255,255,255,0.75)" stroke-width="2.5"/>`;
+  }
+
+  // Relleno — vista de corte transversal del roll
+  const filling = `
+    <circle cx="${cx}" cy="${cy}" r="27" fill="#fdf2d4"/>
+    <!-- Zanahoria -->
+    <ellipse cx="${cx+1}" cy="${cy-13}" rx="10" ry="4.5" fill="#e8721a" transform="rotate(-8,${cx+1},${cy-13})"/>
+    <ellipse cx="${cx+1}" cy="${cy-13}" rx="8" ry="3" fill="#f09030" opacity="0.5" transform="rotate(-8,${cx+1},${cy-13})"/>
+    <!-- Pepino (corte transversal: círculo con centro claro) -->
+    <circle cx="${cx+14}" cy="${cy+3}" r="6.5" fill="#4ea83a"/>
+    <circle cx="${cx+14}" cy="${cy+3}" r="3.5" fill="#c6e890"/>
+    <circle cx="${cx+14}" cy="${cy+3}" r="1.5" fill="#fdf8f0" opacity="0.8"/>
+    <!-- Camarón -->
+    <ellipse cx="${cx}" cy="${cy+14}" rx="11" ry="5" fill="#f28272"/>
+    <ellipse cx="${cx}" cy="${cy+14}" rx="9" ry="3.5" fill="#f9a898" opacity="0.6"/>
+    <!-- Aguacate -->
+    <ellipse cx="${cx-14}" cy="${cy}" rx="5" ry="10" fill="#79be3f"/>
+    <ellipse cx="${cx-14}" cy="${cy}" rx="3" ry="7.5" fill="#a8d96a" opacity="0.6"/>
+    <!-- Queso crema (brillo central) -->
+    <circle cx="${cx+2}" cy="${cy-1}" r="5.5" fill="#fffbf0" opacity="0.9"/>
+  `;
+
+  const chips = [flavor1, flavor2].filter(Boolean).map(f =>
+    `<span class="sushi-flavor-chip" style="background:${getFlavorColor(f)}">${f}</span>`
+  ).join('<span style="color:var(--ink-muted);margin:0 2px">+</span>');
+
+  const label = c2 ? `Mitad ${chips}` : `Completo ${chips}`;
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" width="150" height="150" style="filter:drop-shadow(0 6px 18px rgba(0,0,0,0.22))">
+      <circle cx="${cx}" cy="${cy}" r="69" fill="#16160a"/>
+      ${flavorRing}
+      <circle cx="${cx}" cy="${cy}" r="55" fill="#1c1c0e"/>
+      <circle cx="${cx}" cy="${cy}" r="48" fill="#f5f4e8"/>
+      ${filling}
+    </svg>
+    <div class="sushi-preview-label">${label}</div>`;
+}
+
 function renderSushiPreview() {
   const el = document.getElementById('pm-sushi-preview');
   if (!el) return;
@@ -2655,29 +2709,7 @@ function renderSushiPreview() {
         </div>`;
     }
   } else {
-    // Fallback SVG para sabores sin imagen
-    const c1 = getFlavorColor(sel[0]);
-    const c2 = sel[1] ? getFlavorColor(sel[1]) : null;
-    const cx = 60, cy = 60;
-    let fillSvg = !c2
-      ? `<circle cx="${cx}" cy="${cy}" r="40" fill="${c1}" opacity="0.9"/>`
-      : `<clipPath id="sp-l"><rect x="0" y="0" width="60" height="120"/></clipPath>
-         <clipPath id="sp-r"><rect x="60" y="0" width="60" height="120"/></clipPath>
-         <circle cx="${cx}" cy="${cy}" r="40" fill="${c1}" opacity="0.9" clip-path="url(#sp-l)"/>
-         <circle cx="${cx}" cy="${cy}" r="40" fill="${c2}" opacity="0.9" clip-path="url(#sp-r)"/>
-         <line x1="60" y1="20" x2="60" y2="100" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>`;
-    previewHTML = `
-      <svg viewBox="0 0 120 120" width="110" height="110" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.18))">
-        <circle cx="${cx}" cy="${cy}" r="58" fill="#1a1a0d"/>
-        <circle cx="${cx}" cy="${cy}" r="50" fill="#f7f5ec"/>
-        ${fillSvg}
-        <circle cx="${cx}" cy="${cy}" r="11" fill="#1a1a0d" opacity="0.75"/>
-      </svg>
-      <div class="sushi-preview-label">
-        ${!c2 ? 'Completo' : 'Mitad y mitad'}
-        <span class="sushi-flavor-chip" style="background:${c1}">${sel[0]}</span>
-        ${sel[1] ? `<span class="sushi-flavor-chip" style="background:${c2}">${sel[1]}</span>` : ''}
-      </div>`;
+    previewHTML = buildIngredientSVG(sel[0], sel[1]);
   }
 
   el.innerHTML = `<div class="sushi-preview-wrap">${previewHTML}</div>`;
