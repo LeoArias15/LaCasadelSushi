@@ -1770,7 +1770,7 @@ function openProductModal(productId) {
 
   const opts      = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
   const bases     = getBasePair(p.name);
-  const isCamaron = /camar[oó]/i.test(p.name);
+  const isCamaron = /camar[oó]/i.test(p?.name || '');
   const max       = parseInt(p.options_max) || 2;
   const optSec    = document.getElementById('pm-options-section');
   const optList   = document.getElementById('pm-options-list');
@@ -2657,18 +2657,28 @@ function getBaseType(productName) {
 }
 
 const BASE_META = {
-  empanizado:   { outerFill: 'url(#g-empa)',    chipColor: '#c88218', label: 'Empanizado'   },
-  california:   { outerFill: 'url(#g-nori)',     chipColor: '#444',   label: 'California'   },
-  philadelphia: { outerFill: 'url(#g-philly)',  chipColor: '#999',    label: 'Philadelphia' },
+  // outerFill : gradiente/color del anillo exterior
+  // topFill   : color del topping permanente (ej. aguacate verde encima)
+  // noTopping : true → no dibuja arco de topping de fruta sobre este lado
+  empanizado:   { outerFill: 'url(#g-empa)',    topFill: null,          noTopping: false, chipColor: '#c88218', label: 'Empanizado'   },
+  california:   { outerFill: 'url(#g-nori)',    topFill: null,          noTopping: true,  chipColor: '#444',   label: 'California'   },
+  philadelphia: { outerFill: 'url(#g-rice-out)', topFill: null,         noTopping: false, chipColor: '#999',   label: 'Philadelphia' },
+  aguacate:     { outerFill: 'url(#g-rice-out)', topFill: 'url(#g-agua)', noTopping: false, chipColor: '#4a9e28', label: 'Aguacate' },
+  camaron:      { outerFill: 'url(#g-cam)',      topFill: null,          noTopping: false, chipColor: '#d04838', label: 'Camarón'  },
+  // ── NUEVO PRODUCTO: agrega aquí el tipo y en getBasePair() su regex ──
 };
 
 // Devuelve hasta 2 bases detectadas en el nombre del producto
 function getBasePair(name) {
   const n = name || '';
   const bases = [];
-  if (/california/i.test(n))   bases.push('california');
-  if (/empaniz/i.test(n))      bases.push('empanizado');
-  if (/philadelphia/i.test(n)) bases.push('philadelphia');
+  if (/california/i.test(n))                             bases.push('california');
+  if (/empaniz/i.test(n))                                bases.push('empanizado');
+  if (/philadelphia/i.test(n))                           bases.push('philadelphia');
+  if (/camar[oó]/i.test(n))                              bases.push('camaron');
+  // Solo "aguacate" como roll principal, no cuando dice "Frutas o Aguacate"
+  if (/\baguacate\b/i.test(n) && !/frutas\s+o/i.test(n)) bases.push('aguacate');
+  // ── NUEVO PRODUCTO: agrega aquí → if (/tupalabra/i.test(n)) bases.push('tutipo'); ──
   return bases;
 }
 
@@ -2685,11 +2695,11 @@ function baseChip(type) {
 // opts.shrimp: boolean — camarones encima
 // opts.label : HTML del label
 function buildRollSVG(left, right, opts = {}) {
-  const { lines = 5, shrimp = false, label = '' } = opts;
+  const { lines = 12, shrimp = false, label = '' } = opts;
   const cx = 80, cy = 80, w = 160, h = 160;
   const outerR = 76, noriR = 64, riceR = 57, fillR = 33;
-  const tTop = cy - outerR;   // = 4
-  const tH   = 44;
+  const tTop = cy - outerR;  // = 4
+  const tH   = outerR;       // = 76 → topping llega exactamente a la mitad del sushi
 
   const resolveF = (v) => {
     if (!v) return 'url(#g-rice-out)';
@@ -2697,12 +2707,20 @@ function buildRollSVG(left, right, opts = {}) {
     return BASE_META[v]?.outerFill || 'url(#g-rice-out)';
   };
 
-  const isSplit   = right !== null;
-  const isPending = right === 'PENDING';
-  const leftFill  = resolveF(left);
-  const rightFill = isPending ? '#d8d8d8' : resolveF(right);
+  const leftMeta     = BASE_META[left]  || null;
+  const rightIsBase  = !!(right && BASE_META[right]);
+  const rightIsFruit = !!(right && !rightIsBase && right !== 'PENDING');
+  const isPending    = right === 'PENDING';
+  const isSplit      = right !== null && right !== undefined;
 
-  // ── Anillo exterior ──
+  // El anillo exterior siempre muestra el color BASE (nunca la fruta directamente)
+  const leftFill  = resolveF(left);
+  const rightFill = rightIsBase  ? resolveF(right)
+                  : rightIsFruit ? leftFill        // misma base en la mitad derecha
+                  : isPending    ? '#d8d8d8'
+                  : leftFill;                      // null = círculo completo
+
+  // ── Anillo exterior (base) ──
   let outerRing;
   if (!isSplit) {
     outerRing = `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"/>`;
@@ -2716,43 +2734,63 @@ function buildRollSVG(left, right, opts = {}) {
       <line x1="${cx}" y1="${cy-outerR+2}" x2="${cx}" y2="${cy+outerR-2}" stroke="rgba(255,255,255,0.75)" stroke-width="2.5"/>`;
   }
 
-  // ── Texturas de base ──
+  // ── Texturas de base (empanizado/ajonjolí philadelphia) ──
   const lc = isSplit ? `clip-path="url(#ol)"` : '';
   const rc = `clip-path="url(#or)"`;
 
-  const empaDots = (cx0, offset) => [
-    [cx0-20*offset, cy-60, 3],[cx0+4*offset, cy-66, 2.5],
-    [cx0-38*offset, cy-42, 2.5],[cx0-54*offset, cy+12, 2],
-    [cx0-32*offset, cy+54, 2.5],[cx0-8*offset, cy+62, 2],
+  const empaDots = (flip) => [
+    [cx-20*flip, cy-60, 3],[cx+4*flip, cy-66, 2.5],
+    [cx-38*flip, cy-42, 2.5],[cx-54*flip, cy+12, 2],
+    [cx-32*flip, cy+54, 2.5],[cx-8*flip,  cy+62, 2],
   ].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fac040" opacity="0.45"/>`).join('');
 
-  const phillySeed = (x, y, rot) =>
-    `<ellipse cx="${x}" cy="${y}" rx="2.7" ry="1.3" fill="#c8b868" opacity="0.82" transform="rotate(${rot},${x},${y})"/>`;
+  const ps = (x, y, r) =>
+    `<ellipse cx="${x}" cy="${y}" rx="2.7" ry="1.3" fill="#c8b868" opacity="0.82" transform="rotate(${r},${x},${y})"/>`;
+  // Ajonjolí repartido por todo el arco superior (se clipea al lado que corresponda)
+  const phillySeeds = () =>
+    ps(cx-38,cy-66,30)+ps(cx-18,cy-72,-15)+ps(cx-2,cy-75,45)+
+    ps(cx+18,cy-72,20)+ps(cx+36,cy-66,-30)+ps(cx-28,cy-58,10)+
+    ps(cx+6,cy-60,-20)+ps(cx+26,cy-58,35);
 
   let textures = '';
-  if (left === 'empanizado') textures += `<g ${lc}>${empaDots(cx, 1)}</g>`;
-  if (right === 'empanizado') textures += `<g ${rc}>${empaDots(cx, -1)}</g>`;
-  if (left === 'philadelphia') textures += `<g ${lc}>
-    ${phillySeed(cx-18, cy-72, 30)}${phillySeed(cx-4, cy-74,-15)}
-    ${phillySeed(cx-30, cy-66, 45)}${phillySeed(cx-44,cy-52, 20)}
-    ${phillySeed(cx-12, cy-70,-30)}</g>`;
-  if (right === 'philadelphia') textures += `<g ${rc}>
-    ${phillySeed(cx+18, cy-72,-30)}${phillySeed(cx+4, cy-74, 15)}
-    ${phillySeed(cx+30, cy-66,-45)}${phillySeed(cx+44,cy-52,-20)}
-    ${phillySeed(cx+12, cy-70, 30)}</g>`;
+  if (left  === 'empanizado')   textures += `<g ${lc}>${empaDots(1)}</g>`;
+  if (right === 'empanizado')   textures += `<g ${rc}>${empaDots(-1)}</g>`;
+  if (left  === 'philadelphia') textures += `<g ${lc}>${phillySeeds()}</g>`;
+  if (right === 'philadelphia') textures += `<g ${rc}>${phillySeeds()}</g>`;
 
-  // ── Líneas de corte (siempre sobre todo el ancho) ──
+  // ── Topping overlay — encima del anillo base, llega hasta la mitad ──
+  // Regla: california nunca lleva topping (el nori ES el exterior)
+  let toppingOverlay = '';
+
+  // topFill automático de la base (ej. aguacate = verde encima del arroz)
+  if (leftMeta?.topFill) {
+    const cx1 = isSplit ? 0 : cx - outerR;
+    const cw1 = isSplit ? cx : outerR * 2;
+    toppingOverlay += `
+      <clipPath id="atl"><rect x="${cx1}" y="${tTop}" width="${cw1}" height="${tH}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftMeta.topFill}" clip-path="url(#atl)"/>`;
+  }
+
+  // Fruta elegida: topping en el lado derecho (o círculo completo si no hay split)
+  if (rightIsFruit && !leftMeta?.noTopping) {
+    const cx2 = isSplit ? cx : cx - outerR;
+    const cw2 = isSplit ? outerR : outerR * 2;
+    toppingOverlay += `
+      <clipPath id="ftc"><rect x="${cx2}" y="${tTop}" width="${cw2}" height="${tH}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${right}" clip-path="url(#ftc)"/>`;
+  }
+
+  // ── Líneas de corte en el área del topping ──
   const xL = cx - 65, xR = cx + 65;
-  const step = (xR - xL) / (lines + 1);
+  const stepL = (xR - xL) / (lines + 1);
   let sliceLines = '';
   for (let i = 1; i <= lines; i++) {
-    const x = xL + step * i;
-    sliceLines += `<line x1="${x.toFixed(1)}" y1="${tTop+2}" x2="${x.toFixed(1)}" y2="${tTop+tH-2}" stroke="rgba(255,255,255,0.30)" stroke-width="1.2"/>`;
+    const x = xL + stepL * i;
+    sliceLines += `<line x1="${x.toFixed(1)}" y1="${tTop+2}" x2="${x.toFixed(1)}" y2="${tTop+tH-2}" stroke="rgba(255,255,255,0.28)" stroke-width="1.2"/>`;
   }
   const tLines = `
     <clipPath id="tcl"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tH}"/></clipPath>
-    ${sliceLines}
-    <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="rgba(255,255,255,0.07)" clip-path="url(#tcl)"/>`;
+    ${sliceLines}`;
 
   // ── Camarones encima ──
   const shrimpSVG = shrimp ? (() => {
@@ -2814,7 +2852,7 @@ function buildRollSVG(left, right, opts = {}) {
 
   return `
     <svg viewBox="0 0 ${w} ${h}" width="170" height="170" style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.28))">
-      ${defs}${outerRing}${textures}${tLines}${shrimpSVG}
+      ${defs}${outerRing}${textures}${toppingOverlay}${tLines}${shrimpSVG}
       <circle cx="${cx}" cy="${cy}" r="${noriR}" fill="url(#g-nori)"/>
       <circle cx="${cx}" cy="${cy}" r="${riceR}"  fill="url(#g-rice)"/>
       ${grains}${filling}
