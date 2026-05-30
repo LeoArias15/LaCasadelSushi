@@ -51,7 +51,7 @@ body::before{
     radial-gradient(ellipse 50% 40% at 80% 20%, rgba(155,111,224,0.12) 0%, transparent 70%),
     radial-gradient(ellipse 40% 60% at 60% 90%, rgba(212,168,75,0.10) 0%, transparent 60%);
 }
-#app,#login-screen{position:relative;z-index:1;}
+#app{position:relative;z-index:1;display:flex;flex:1;}
 
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
@@ -484,7 +484,7 @@ body::before{
     <div class="login-logo">La Casa <span>del Sushi</span></div>
     <div class="login-sub">Panel de Administración</div>
     <div class="login-error" id="login-error">Credenciales incorrectas</div>
-    <div class="field"><label>Correo electrónico</label><input type="email" id="l-user" placeholder="correo@dominio.com"></div>
+    <div class="field"><label>Usuario</label><input type="text" id="l-user" placeholder="usuario"></div>
     <div class="field"><label>Contraseña</label><input type="password" id="l-pass" placeholder="••••••••"></div>
     <button class="btn-gold" id="btn-login">Ingresar al panel</button>
   </div>
@@ -1017,13 +1017,30 @@ async function initAuth() {
 }
 
 async function doLogin() {
-  const email = document.getElementById('l-user').value.trim();
+  const username = document.getElementById('l-user').value.trim();
   const pass = document.getElementById('l-pass').value;
   const btn = document.getElementById('btn-login');
   const errEl = document.getElementById('login-error');
   errEl.classList.remove('v');
-  if (!email || !pass) { errEl.textContent = 'Completa todos los campos'; errEl.classList.add('v'); return; }
+  if (!username || !pass) { errEl.textContent = 'Completa todos los campos'; errEl.classList.add('v'); return; }
   btn.disabled = true; btn.textContent = 'Verificando...';
+  // Buscar email por username con timeout de 5 segundos
+  let email = null;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/admin_users?select=email&username=eq.${encodeURIComponent(username)}&limit=1`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    const rows = await res.json();
+    if (rows?.length) email = rows[0].email;
+  } catch(e) {}
+  if (!email) {
+    btn.disabled = false; btn.textContent = 'Ingresar al panel';
+    errEl.textContent = 'Usuario o contraseña incorrectos'; errEl.classList.add('v'); return;
+  }
   const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   btn.disabled = false; btn.textContent = 'Ingresar al panel';
   if (error || data.user?.app_metadata?.role !== 'admin') {
@@ -1051,10 +1068,10 @@ document.getElementById('btn-logout').onclick = async () => {
 // ── INIT ──
 async function initApp() {
   setDateFilter(7);
+  startClock(); setupNav(); setToday();
   await Promise.all([loadOrders(), loadProducts(), loadCategories(), loadSettings()]);
-  startClock(); setupNav(); setupRealtime();
+  setupRealtime();
   renderOrders(); renderDashboard(); updateStatusToggles();
-  setToday();
 }
 
 setInterval(updateStatusBar, 60000);
