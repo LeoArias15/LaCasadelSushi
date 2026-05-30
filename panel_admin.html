@@ -893,12 +893,16 @@ async function doLogin() {
   errEl.classList.remove('v');
   if (!username || !pass) { errEl.textContent = 'Completa todos los campos'; errEl.classList.add('v'); return; }
   btn.disabled = true; btn.textContent = 'Verificando...';
-  const { data: adminData } = await sb.from('admin_users').select('email').eq('username', username).single();
+  console.log('1. Buscando admin_users para:', username);
+  const { data: adminData, error: adminError } = await sb.from('admin_users').select('email').eq('username', username).single();
+  console.log('2. adminData:', adminData, 'adminError:', adminError);
   if (!adminData) {
     btn.disabled = false; btn.textContent = 'Ingresar al panel';
     errEl.textContent = 'Usuario o contraseña incorrectos'; errEl.classList.add('v'); return;
   }
+  console.log('3. Haciendo signIn con:', adminData.email);
   const { data, error } = await sb.auth.signInWithPassword({ email: adminData.email, password: pass });
+  console.log('4. signIn data:', data?.user?.app_metadata, 'error:', error);
   btn.disabled = false; btn.textContent = 'Ingresar al panel';
   if (error || data.user?.app_metadata?.role !== 'admin') {
     if (!error) await sb.auth.signOut();
