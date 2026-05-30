@@ -765,48 +765,112 @@ body{
 
       <!-- ── VISTA PREVIA DEL ROLL ── -->
       <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
-        <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px">
-          🍣 Vista previa del roll
-          <span style="font-size:11px;font-weight:400;color:var(--text3)">(opcional — si dejas en Auto se detecta del nombre)</span>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Exterior del roll</label>
-            <select id="pf-preview-outer">
-              <option value="">Auto (detectar del nombre)</option>
-              <option value="rice">Arroz blanco (por fuera)</option>
-              <option value="nori">Nori / alga (por fuera)</option>
-              <option value="empanizado">Empanizado (dorado)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Mitad derecha (split fijo)</label>
-            <select id="pf-preview-right">
-              <option value="">Auto / ninguno</option>
-              <option value="california">California</option>
-              <option value="empanizado">Empanizado</option>
-              <option value="philadelphia">Philadelphia</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Color del topping fijo</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="color" id="pf-preview-color" value="#ffffff"
-                     style="width:42px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border2);cursor:pointer">
-              <input id="pf-preview-color-hex" placeholder="#e03055 (o vacío)"
-                     style="flex:1;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none"
-                     oninput="syncColorPicker(this.value)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px">🍣 Vista previa del roll</div>
+
+        <!-- Toggle 2 mitades -->
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;font-size:13px">
+          <input type="checkbox" id="pf-split" onchange="onPreviewChange()">
+          <b>Dividir en 2 mitades</b>
+        </label>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <!-- MITAD IZQUIERDA / ÚNICA -->
+          <div style="background:var(--bg3);border-radius:var(--r);padding:12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px" id="pf-left-title">MITAD ÚNICA</div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label>Tipo</label>
+              <select id="pf-left-type" onchange="onPreviewChange()">
+                <option value="fixed">Base fija</option>
+                <option value="options">Opciones de sabor (cliente elige)</option>
+              </select>
             </div>
-            <span style="font-size:11px;color:var(--text3);margin-top:2px">Solo para rollos sin opciones de sabor</span>
+            <div id="pf-left-fixed-area">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Exterior</label>
+                <select id="pf-left-base" onchange="onPreviewChange()">
+                  <option value="">Arroz blanco</option>
+                  <option value="california">California (nori/alga)</option>
+                  <option value="empanizado">Empanizado</option>
+                  <option value="philadelphia">Philadelphia (arroz + ajonjolí)</option>
+                  <option value="aguacate">Aguacate (arroz + verde)</option>
+                  <option value="camaron">Camarón</option>
+                </select>
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;margin-bottom:8px">
+                <input type="checkbox" id="pf-lht" onchange="onPreviewChange()"> Topping fijo encima
+              </label>
+              <div id="pf-left-top-area" style="display:none">
+                <div class="form-group" style="margin-bottom:6px">
+                  <label>Color</label>
+                  <div style="display:flex;gap:6px">
+                    <input type="color" id="pf-lc" value="#e03055" style="width:34px;height:30px;padding:2px;border-radius:6px;border:1px solid var(--border2);cursor:pointer"
+                           oninput="document.getElementById('pf-lh').value=this.value;onPreviewChange()">
+                    <input id="pf-lh" placeholder="#e03055" style="flex:1;padding:7px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;outline:none"
+                           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('pf-lc').value=this.value;onPreviewChange()">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>Nombre</label>
+                  <input id="pf-ln" placeholder="ej. Fresa, Salmón..." oninput="onPreviewChange()" style="font-size:12px">
+                </div>
+              </div>
+            </div>
+            <div id="pf-left-opts-info" style="display:none;font-size:11px;color:var(--text3);background:var(--bg2);border-radius:6px;padding:8px;line-height:1.5">
+              El cliente elige de las "Opciones de sabor" del producto.
+            </div>
           </div>
-          <div class="form-group">
-            <label>Nombre del topping fijo</label>
-            <input id="pf-preview-name" placeholder="ej. Camarón, Salmón...">
+
+          <!-- MITAD DERECHA -->
+          <div style="background:var(--bg3);border-radius:var(--r);padding:12px" id="pf-right-card">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:10px">MITAD DERECHA</div>
+            <div class="form-group" style="margin-bottom:8px">
+              <label>Tipo</label>
+              <select id="pf-right-type" onchange="onPreviewChange()">
+                <option value="options">Opciones de sabor (cliente elige)</option>
+                <option value="fixed">Base fija</option>
+              </select>
+            </div>
+            <div id="pf-right-fixed-area" style="display:none">
+              <div class="form-group" style="margin-bottom:8px">
+                <label>Exterior</label>
+                <select id="pf-right-base" onchange="onPreviewChange()">
+                  <option value="">Arroz blanco</option>
+                  <option value="california">California (nori/alga)</option>
+                  <option value="empanizado">Empanizado</option>
+                  <option value="philadelphia">Philadelphia (arroz + ajonjolí)</option>
+                  <option value="aguacate">Aguacate (arroz + verde)</option>
+                  <option value="camaron">Camarón</option>
+                </select>
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;margin-bottom:8px">
+                <input type="checkbox" id="pf-rht" onchange="onPreviewChange()"> Topping fijo encima
+              </label>
+              <div id="pf-right-top-area" style="display:none">
+                <div class="form-group" style="margin-bottom:6px">
+                  <label>Color</label>
+                  <div style="display:flex;gap:6px">
+                    <input type="color" id="pf-rc" value="#4a9e28" style="width:34px;height:30px;padding:2px;border-radius:6px;border:1px solid var(--border2);cursor:pointer"
+                           oninput="document.getElementById('pf-rh').value=this.value;onPreviewChange()">
+                    <input id="pf-rh" placeholder="#4a9e28" style="flex:1;padding:7px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12px;outline:none"
+                           oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('pf-rc').value=this.value;onPreviewChange()">
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <label>Nombre</label>
+                  <input id="pf-rn" placeholder="ej. Aguacate, Camarón..." oninput="onPreviewChange()" style="font-size:12px">
+                </div>
+              </div>
+            </div>
+            <div id="pf-right-opts-info" style="font-size:11px;color:var(--text3);background:var(--bg2);border-radius:6px;padding:8px;line-height:1.5">
+              El cliente elige de las "Opciones de sabor" del producto.
+            </div>
           </div>
         </div>
-        <div id="pf-preview-demo" style="display:flex;align-items:center;gap:12px;margin-top:8px;padding:12px;background:var(--bg3);border-radius:var(--r)">
-          <div id="pf-preview-svg" style="flex-shrink:0"></div>
-          <span style="font-size:12px;color:var(--text3)">Vista previa en tiempo real</span>
+
+        <!-- Mini preview -->
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;background:var(--bg3);border-radius:var(--r)">
+          <div id="pf-preview-svg"></div>
+          <span style="font-size:11px;color:var(--text3)">Vista previa aproximada</span>
         </div>
       </div>
       <div class="form-row">
@@ -1021,9 +1085,22 @@ let state = {
 
 // ── AUTH ──
 async function initAuth() {
-  const { data:{ session } } = await sb.auth.getSession();
-  if (session && session.user.app_metadata?.role === 'admin') showApp();
-  else if (session) await sb.auth.signOut();
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (error) throw error;
+    const session = data?.session;
+    if (session && session.user.app_metadata?.role === 'admin') {
+      showApp();
+    } else if (session) {
+      await sb.auth.signOut(); // sesión sin rol admin
+    }
+    // Si no hay sesión → muestra pantalla de login (ya está visible por defecto)
+  } catch (e) {
+    console.error('initAuth error:', e);
+    // Mostrar login de todas formas; el error puede ser de red
+    document.getElementById('login-error').textContent = 'Error de conexión, intenta de nuevo';
+    document.getElementById('login-error').classList.add('v');
+  }
 }
 
 async function doLogin() {
@@ -1079,7 +1156,33 @@ document.getElementById('btn-logout').onclick = async () => {
 async function initApp() {
   setDateFilter(7);
   startClock(); setupNav(); setToday();
-  await Promise.all([loadOrders(), loadProducts(), loadCategories(), loadSettings()]);
+
+  // Mostrar spinner de carga
+  const appEl = document.getElementById('app');
+  const loadBanner = document.createElement('div');
+  loadBanner.id = 'app-loading-banner';
+  loadBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--gold);color:#000;font-size:13px;font-weight:600;text-align:center;padding:8px;letter-spacing:0.03em';
+  loadBanner.textContent = 'Cargando datos…';
+  document.body.appendChild(loadBanner);
+
+  try {
+    // Timeout de 15 segundos para la carga inicial
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Tiempo de espera agotado')), 15000)
+    );
+    await Promise.race([
+      Promise.all([loadOrders(), loadProducts(), loadCategories(), loadSettings()]),
+      timeout
+    ]);
+    loadBanner.remove();
+  } catch (e) {
+    console.error('initApp load error:', e);
+    loadBanner.style.background = '#c0392b';
+    loadBanner.style.color = '#fff';
+    loadBanner.innerHTML = `Error al cargar: ${e.message}. <button onclick="location.reload()" style="margin-left:12px;background:#fff;color:#c0392b;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reintentar</button>`;
+    // Intentar renderizar lo que haya cargado
+  }
+
   setupRealtime();
   renderOrders(); renderDashboard(); updateStatusToggles();
   renderProducts(); renderCategories();
@@ -1122,16 +1225,25 @@ async function loadOrders() {
   if (label) label.textContent = `${state.orders.length} pedido${state.orders.length!==1?'s':''}`;
 }
 async function loadProducts() {
-  const { data } = await sb.from('products').select('*,categories(name,emoji)').order('sort_order');
-  state.products = data || [];
+  try {
+    const { data, error } = await sb.from('products').select('*,categories(name,emoji)').order('sort_order');
+    if (error) throw error;
+    state.products = data || [];
+  } catch(e) { console.error('loadProducts:', e); }
 }
 async function loadCategories() {
-  const { data } = await sb.from('categories').select('*').order('sort_order');
-  state.categories = data || [];
+  try {
+    const { data, error } = await sb.from('categories').select('*').order('sort_order');
+    if (error) throw error;
+    state.categories = data || [];
+  } catch(e) { console.error('loadCategories:', e); }
 }
 async function loadSettings() {
-  const { data } = await sb.from('settings').select('*').single();
-  state.settings = data; updateStatusBar();
+  try {
+    const { data, error } = await sb.from('settings').select('*').single();
+    if (error) throw error;
+    state.settings = data; updateStatusBar();
+  } catch(e) { console.error('loadSettings:', e); }
 }
 async function loadClients() {
   const { data } = await sb.from('profiles').select('*').order('orders_count',{ascending:false});
@@ -1881,13 +1993,7 @@ function openProductForm(product=null) {
 
     document.getElementById('pf-available').value = String(product.available);
     document.getElementById('pf-featured').value = String(product.featured);
-    // Preview config
-    const pc = product.preview_config || {};
-    document.getElementById('pf-preview-outer').value   = pc.outer        || '';
-    document.getElementById('pf-preview-right').value   = pc.right_base   || '';
-    document.getElementById('pf-preview-color-hex').value = pc.topping_color || '';
-    document.getElementById('pf-preview-color').value   = pc.topping_color || '#ffffff';
-    document.getElementById('pf-preview-name').value    = pc.topping_name  || '';
+    loadPreviewConfig(product.preview_config);
     if (product.image_url) {
       document.getElementById('img-preview').src = product.image_url;
       document.getElementById('img-preview').style.display = 'block';
@@ -1896,11 +2002,9 @@ function openProductForm(product=null) {
   } else {
     document.getElementById('pf-title').textContent = 'Nuevo producto';
     document.getElementById('pf-id').value = '';
-    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options','pf-options-max',
-     'pf-preview-color-hex','pf-preview-name'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('pf-preview-outer').value = '';
-    document.getElementById('pf-preview-right').value = '';
-    document.getElementById('pf-preview-color').value = '#ffffff';
+    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options','pf-options-max']
+      .forEach(id=>document.getElementById(id).value='');
+    loadPreviewConfig(null);
     document.getElementById('pf-available').value = 'true';
     document.getElementById('pf-featured').value = 'false';
   }
@@ -1961,69 +2065,107 @@ document.getElementById('btn-new-product').onclick = () => openProductForm();
 function editProduct(id) { openProductForm(state.products.find(p=>p.id===id)); }
 function closeProductModal() { document.getElementById('product-form-modal').classList.remove('open'); }
 
-function buildPreviewConfig() {
-  const outer = document.getElementById('pf-preview-outer').value || null;
-  const right = document.getElementById('pf-preview-right').value || null;
-  const color = (document.getElementById('pf-preview-color-hex').value || '').trim() || null;
-  const name  = document.getElementById('pf-preview-name').value.trim() || null;
-  if (!outer && !right && !color && !name) return null; // sin config = auto
-  return { outer, right_base: right, topping_color: color, topping_name: name };
-}
-
-function syncColorPicker(hex) {
-  if (/^#[0-9a-fA-F]{6}$/.test(hex))
-    document.getElementById('pf-preview-color').value = hex;
-}
-
-// Live preview dentro del formulario admin (mini SVG 80px)
-function updateAdminPreview() {
-  const outer = document.getElementById('pf-preview-outer').value;
-  const right = document.getElementById('pf-preview-right').value;
-  const color = document.getElementById('pf-preview-color-hex').value.trim();
-  const name  = document.getElementById('pf-preview-name').value.trim();
-  const container = document.getElementById('pf-preview-svg');
-  if (!container) return;
-  const leftVal  = outer || null;
-  const rightVal = right || (color || null);
-  const lbl = name ? `<span style="font-size:11px;color:#888">${name}</span>` : '';
-  // Mini SVG de 80px usando el mismo buildRollSVG del menú (no disponible aquí)
-  // Mostramos un simple bloque de color como indicador
-  const leftColor  = outerToColor(leftVal);
-  const rightColor = rightVal && rightVal.startsWith('#') ? rightVal : outerToColor(rightVal);
-  container.innerHTML = `
-    <svg viewBox="0 0 60 60" width="60" height="60" style="border-radius:50%;overflow:hidden;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.2))">
-      <clipPath id="apl"><rect x="0" y="0" width="30" height="60"/></clipPath>
-      <clipPath id="apr"><rect x="30" y="0" width="30" height="60"/></clipPath>
-      <circle cx="30" cy="30" r="30" fill="${leftColor}"/>
-      ${rightVal ? `<circle cx="30" cy="30" r="30" fill="${rightColor}" clip-path="url(#apr)"/>
-      <line x1="30" y1="0" x2="30" y2="60" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>` : ''}
-      <circle cx="30" cy="30" r="12" fill="rgba(0,0,0,0.25)"/>
-    </svg>
-    ${lbl}`;
-}
-
 function outerToColor(val) {
   if (!val) return '#f0f0e8';
-  if (val === 'nori' || val === 'california') return '#1e1e12';
+  if (val === 'california') return '#1e1e12';
   if (val === 'empanizado') return '#c88218';
-  if (val === 'philadelphia') return '#f5f4e8';
-  if (val === 'rice') return '#f0f0e8';
-  if (val.startsWith('#')) return val;
-  return '#f0f0e8';
+  if (typeof val === 'string' && val.startsWith('#')) return val;
+  return '#f0f0e8'; // arroz blanco por defecto
 }
 
-// Escuchar cambios en los campos de preview
-['pf-preview-outer','pf-preview-right','pf-preview-color','pf-preview-color-hex','pf-preview-name']
-  .forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateAdminPreview);
-    if (el) el.addEventListener('change', updateAdminPreview);
-  });
-
-document.getElementById('pf-preview-color').addEventListener('input', e => {
-  document.getElementById('pf-preview-color-hex').value = e.target.value;
+function onPreviewChange() {
+  const split = document.getElementById('pf-split').checked;
+  document.getElementById('pf-right-card').style.display  = split ? '' : 'none';
+  document.getElementById('pf-left-title').textContent    = split ? 'MITAD IZQUIERDA' : 'MITAD ÚNICA';
+  const lt = document.getElementById('pf-left-type').value;
+  document.getElementById('pf-left-fixed-area').style.display = lt === 'fixed'   ? '' : 'none';
+  document.getElementById('pf-left-opts-info').style.display  = lt === 'options' ? '' : 'none';
+  document.getElementById('pf-left-top-area').style.display   =
+    lt === 'fixed' && document.getElementById('pf-lht').checked ? '' : 'none';
+  const rt = document.getElementById('pf-right-type').value;
+  document.getElementById('pf-right-fixed-area').style.display = rt === 'fixed'   ? '' : 'none';
+  document.getElementById('pf-right-opts-info').style.display  = rt === 'options' ? '' : 'none';
+  document.getElementById('pf-right-top-area').style.display   =
+    rt === 'fixed' && document.getElementById('pf-rht').checked ? '' : 'none';
   updateAdminPreview();
-});
+}
+
+function buildPreviewConfig() {
+  const split = document.getElementById('pf-split').checked;
+  const lt = document.getElementById('pf-left-type').value;
+  const lb = document.getElementById('pf-left-base').value || null;
+  const lht = document.getElementById('pf-lht').checked;
+  const lc = lht ? (document.getElementById('pf-lh').value.trim()||null) : null;
+  const ln = lht ? (document.getElementById('pf-ln').value.trim()||null) : null;
+  const left = { type:lt, base:lt==='fixed'?lb:null, topping_color:lc, topping_name:ln };
+  if (!split) {
+    if (lt==='options'||lb||lc) return { split:false, left, right:null };
+    return null;
+  }
+  const rt = document.getElementById('pf-right-type').value;
+  const rb = document.getElementById('pf-right-base').value || null;
+  const rht = document.getElementById('pf-rht').checked;
+  const rc = rht ? (document.getElementById('pf-rh').value.trim()||null) : null;
+  const rn = rht ? (document.getElementById('pf-rn').value.trim()||null) : null;
+  const right = { type:rt, base:rt==='fixed'?rb:null, topping_color:rc, topping_name:rn };
+  return { split:true, left, right };
+}
+
+function loadPreviewConfig(pc) {
+  const set = (id,v) => { const e=document.getElementById(id); if(e) e.value=v||''; };
+  const chk = (id,v) => { const e=document.getElementById(id); if(e) e.checked=!!v; };
+  const col = (id,v) => { if(v&&/^#[0-9a-fA-F]{6}$/.test(v)){const e=document.getElementById(id);if(e)e.value=v;} };
+  if (!pc || typeof pc!=='object' || pc.split===undefined) {
+    chk('pf-split',false); set('pf-left-type','fixed'); set('pf-left-base','');
+    chk('pf-lht',false); set('pf-lh',''); set('pf-ln','');
+    set('pf-right-type','options'); set('pf-right-base','');
+    chk('pf-rht',false); set('pf-rh',''); set('pf-rn','');
+    onPreviewChange(); return;
+  }
+  chk('pf-split',pc.split);
+  const l=pc.left||{};
+  set('pf-left-type',l.type||'fixed'); set('pf-left-base',l.base||'');
+  chk('pf-lht',!!l.topping_color); set('pf-lh',l.topping_color||''); col('pf-lc',l.topping_color);
+  set('pf-ln',l.topping_name||'');
+  const r=pc.right||{};
+  set('pf-right-type',r.type||'options'); set('pf-right-base',r.base||'');
+  chk('pf-rht',!!r.topping_color); set('pf-rh',r.topping_color||''); col('pf-rc',r.topping_color);
+  set('pf-rn',r.topping_name||'');
+  onPreviewChange();
+}
+
+function updateAdminPreview() {
+  const c = document.getElementById('pf-preview-svg');
+  if (!c) return;
+  const split = document.getElementById('pf-split').checked;
+  const lb = document.getElementById('pf-left-base').value;
+  const lc = document.getElementById('pf-lht').checked ? document.getElementById('pf-lh').value : null;
+  const leftBase = outerToColor(lb);
+  const leftTop  = lc && /^#[0-9a-fA-F]{6}$/.test(lc) ? lc : null;
+  let rf = null;
+  if (split) {
+    const rt = document.getElementById('pf-right-type').value;
+    if (rt==='options') { rf='#909090'; }
+    else {
+      const rb = document.getElementById('pf-right-base').value;
+      const rc = document.getElementById('pf-rht').checked ? document.getElementById('pf-rh').value : null;
+      rf = (rc&&/^#[0-9a-fA-F]{6}$/.test(rc)) ? rc : outerToColor(rb);
+    }
+  }
+  c.innerHTML = `<svg viewBox="0 0 64 64" width="64" height="64" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.2))">
+    ${split?`<clipPath id="pvl"><rect x="0" y="0" width="32" height="64"/></clipPath>
+    <clipPath id="pvr"><rect x="32" y="0" width="32" height="64"/></clipPath>
+    <circle cx="32" cy="32" r="32" fill="${leftBase}" clip-path="url(#pvl)"/>
+    <circle cx="32" cy="32" r="32" fill="${rf}" clip-path="url(#pvr)"/>
+    ${leftTop?`<clipPath id="pvlt"><rect x="0" y="0" width="32" height="32"/></clipPath>
+    <circle cx="32" cy="32" r="32" fill="${leftTop}" clip-path="url(#pvlt)"/>`:''}
+    <line x1="32" y1="0" x2="32" y2="64" stroke="rgba(255,255,255,.75)" stroke-width="1.5"/>
+    `:`<circle cx="32" cy="32" r="32" fill="${leftBase}"/>
+    ${leftTop?`<clipPath id="pvst"><rect x="0" y="0" width="64" height="32"/></clipPath>
+    <circle cx="32" cy="32" r="32" fill="${leftTop}" clip-path="url(#pvst)"/>`:''}
+    `}
+    <circle cx="32" cy="32" r="11" fill="rgba(0,0,0,.28)"/></svg>`;
+}
 document.getElementById('product-form-modal').onclick = e => { if(e.target.id==='product-form-modal') closeProductModal(); };
 
 document.getElementById('btn-save-product').onclick = async () => {
