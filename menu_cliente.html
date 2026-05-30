@@ -370,6 +370,24 @@ body{
   outline:none;transition:border-color 0.2s;
 }
 .notes-input:focus{border-color:var(--ink);}
+/* ── SUSHI PREVIEW ── */
+.sushi-preview-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+  padding:16px 0 4px;
+  animation:fadeIn 0.3s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:scale(0.9);}to{opacity:1;transform:scale(1);}}
+.sushi-preview-label{
+  font-size:12px;color:var(--ink-muted);letter-spacing:0.04em;
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;
+}
+.sushi-flavor-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:500;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,0.25);
+}
+
 .modal-add-row{
   display:flex;align-items:center;gap:12px;
   margin-top:20px;padding:0 24px;
@@ -1013,6 +1031,7 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
         <span class="notes-label">Elige tu sabor</span>
         <div id="pm-options-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
         <div style="font-size:11px;color:var(--ink-muted);margin-top:6px">Selecciona hasta 2 opciones</div>
+        <div id="pm-sushi-preview"></div>
       </div>
       <label class="notes-label">Notas especiales (opcional)</label>
       <textarea class="notes-input" id="pm-notes" placeholder="Sin cebollín, extra aguacate, etc."></textarea>
@@ -1736,6 +1755,8 @@ function openProductModal(productId) {
   document.getElementById('pm-total').textContent = '$' + p.price.toFixed(0);
 
   state.selectedOptions = [];
+  const previewEl = document.getElementById('pm-sushi-preview');
+  if (previewEl) previewEl.innerHTML = '';
   const opts = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
   const optSec = document.getElementById('pm-options-section');
   const optList = document.getElementById('pm-options-list');
@@ -2562,6 +2583,98 @@ function bindEvents() {
   setInterval(renderStatus, 60000);
 }
 
+const FLAVOR_COLORS = {
+  'fresa':         '#e8405a',
+  'strawberry':    '#e8405a',
+  'aguacate':      '#5a9e3a',
+  'avocado':       '#5a9e3a',
+  'mango':         '#f5a623',
+  'plátano macho': '#d4a017',
+  'platano macho': '#d4a017',
+  'plátano':       '#d4a017',
+  'platano':       '#d4a017',
+  'tamarindo':  '#8b3a1e',
+  'chamoy':     '#c0392b',
+  'limón':      '#b5cc18',
+  'limon':      '#b5cc18',
+  'pepino':     '#82c96e',
+  'cucumber':   '#82c96e',
+  'jamaica':    '#7b1fa2',
+  'piña':       '#f9d423',
+  'pina':       '#f9d423',
+  'cajeta':     '#c68642',
+  'caramelo':   '#c68642',
+  'chocolate':  '#5c3317',
+  'nutella':    '#7b3f00',
+  'maracuyá':   '#e67e22',
+  'maracuya':   '#e67e22',
+  'guayaba':    '#e91e8c',
+  'kiwi':       '#4caf50',
+  'coco':       '#d7ccc8',
+  'naranja':    '#ff6f00',
+  'orange':     '#ff6f00',
+  'cereza':     '#c62828',
+  'cherry':     '#c62828',
+  'uva':        '#6a1b9a',
+  'grape':      '#6a1b9a',
+  'durazno':    '#ff8a65',
+  'peach':      '#ff8a65',
+  'melón':      '#81c784',
+  'melon':      '#81c784',
+  'sandia':     '#e53935',
+  'watermelon': '#e53935',
+  'rojo':       '#e53935',
+  'verde':      '#43a047',
+  'amarillo':   '#fdd835',
+};
+
+function getFlavorColor(name) {
+  const key = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  return FLAVOR_COLORS[name.toLowerCase()] || FLAVOR_COLORS[key] || '#b0b0b0';
+}
+
+function renderSushiPreview() {
+  const el = document.getElementById('pm-sushi-preview');
+  if (!el) return;
+  const sel = state.selectedOptions || [];
+  if (!sel.length) { el.innerHTML = ''; return; }
+
+  const c1 = getFlavorColor(sel[0]);
+  const c2 = sel[1] ? getFlavorColor(sel[1]) : null;
+  const cx = 60, cy = 60, r = 58, rRice = 50, rFill = 40, rCenter = 11;
+
+  let fillSvg;
+  if (!c2) {
+    fillSvg = `<circle cx="${cx}" cy="${cy}" r="${rFill}" fill="${c1}" opacity="0.9"/>`;
+  } else {
+    fillSvg = `
+      <clipPath id="sp-left"><rect x="0" y="0" width="${cx}" height="120"/></clipPath>
+      <clipPath id="sp-right"><rect x="${cx}" y="0" width="${cx}" height="120"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${rFill}" fill="${c1}" opacity="0.9" clip-path="url(#sp-left)"/>
+      <circle cx="${cx}" cy="${cy}" r="${rFill}" fill="${c2}" opacity="0.9" clip-path="url(#sp-right)"/>
+      <line x1="${cx}" y1="${cy-rFill}" x2="${cx}" y2="${cy+rFill}" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>`;
+  }
+
+  const chips = sel.map(f =>
+    `<span class="sushi-flavor-chip" style="background:${getFlavorColor(f)}">${f}</span>`
+  ).join('');
+
+  const label = c2
+    ? `<span>Mitad ${chips}</span>`
+    : `<span>Completo ${chips}</span>`;
+
+  el.innerHTML = `<div class="sushi-preview-wrap">
+    <svg viewBox="0 0 120 120" width="110" height="110" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.18))">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#1a1a0d"/>
+      <circle cx="${cx}" cy="${cy}" r="${rRice}" fill="#f7f5ec"/>
+      ${fillSvg}
+      <circle cx="${cx}" cy="${cy}" r="${rCenter}" fill="#1a1a0d" opacity="0.75"/>
+      <circle cx="${cx}" cy="${cy}" r="5" fill="rgba(255,255,255,0.3)"/>
+    </svg>
+    <div class="sushi-preview-label">${label}</div>
+  </div>`;
+}
+
 function toggleOption(btn, option) {
   const max = state.currentProduct?.options_max || 2;
   if (btn.classList.contains('selected')) {
@@ -2575,6 +2688,7 @@ function toggleOption(btn, option) {
     btn.classList.add('selected');
     state.selectedOptions = [...(state.selectedOptions||[]), option];
   }
+  renderSushiPreview();
 }
 
 function swapLogo(theme) {
