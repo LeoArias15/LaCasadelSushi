@@ -422,7 +422,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff);font-size:14px
   <div class="content">
 
     <!-- ORDERS -->
-    <div class="panel active" id="panel-orders"><div id="kanban-board"></div></div>
+    <div class="panel active" id="panel-orders">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0 16px;">
+        <label style="font-size:12px;color:var(--text3);white-space:nowrap;">Desde</label>
+        <input type="date" id="filter-date-from" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none;">
+        <label style="font-size:12px;color:var(--text3);white-space:nowrap;">Hasta</label>
+        <input type="date" id="filter-date-to" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none;">
+        <button id="btn-filter-orders" class="btn-add" style="padding:8px 16px;">Buscar</button>
+        <button id="btn-filter-today" style="padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--ff);font-size:12px;cursor:pointer;">Hoy</button>
+        <button id="btn-filter-week" style="padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--ff);font-size:12px;cursor:pointer;">7 días</button>
+        <button id="btn-filter-month" style="padding:8px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-family:var(--ff);font-size:12px;cursor:pointer;">30 días</button>
+        <span id="orders-count-label" style="font-size:12px;color:var(--text3);margin-left:auto;"></span>
+      </div>
+      <div id="kanban-board"></div>
+    </div>
 
     <!-- DASHBOARD -->
     <div class="panel" id="panel-dashboard">
@@ -868,7 +881,7 @@ let state = {
 // ── AUTH ──
 async function initAuth() {
   const { data:{ session } } = await sb.auth.getSession();
-  if (session && session.user.user_metadata?.role === 'admin') showApp();
+  if (session && session.user.app_metadata?.role === 'admin') showApp();
   else if (session) await sb.auth.signOut();
 }
 
@@ -887,7 +900,7 @@ async function doLogin() {
   }
   const { data, error } = await sb.auth.signInWithPassword({ email: adminData.email, password: pass });
   btn.disabled = false; btn.textContent = 'Ingresar al panel';
-  if (error || data.user?.user_metadata?.role !== 'admin') {
+  if (error || data.user?.app_metadata?.role !== 'admin') {
     if (!error) await sb.auth.signOut();
     errEl.textContent = 'Usuario o contraseña incorrectos'; errEl.classList.add('v'); return;
   }
@@ -911,6 +924,7 @@ document.getElementById('btn-logout').onclick = async () => {
 
 // ── INIT ──
 async function initApp() {
+  setDateFilter(7);
   await Promise.all([loadOrders(), loadProducts(), loadCategories(), loadSettings()]);
   startClock(); setupNav(); setupRealtime();
   renderOrders(); renderDashboard(); updateStatusToggles();
@@ -938,9 +952,20 @@ function scheduleMidnightRefresh() {
 
 // ── DATA ──
 async function loadOrders() {
-  const { data } = await sb.from('orders').select('*,order_items(*),profiles(name,phone)').order('created_at',{ascending:false}).limit(200);
+  const fromVal = document.getElementById('filter-date-from')?.value;
+  const toVal = document.getElementById('filter-date-to')?.value;
+  const since = fromVal ? new Date(fromVal).toISOString() : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const until = toVal ? new Date(toVal + 'T23:59:59').toISOString() : new Date().toISOString();
+  const { data } = await sb.from('orders')
+    .select('*,order_items(id,product_name,product_price,quantity,notes,subtotal),profiles(name,phone)')
+    .gte('created_at', since)
+    .lte('created_at', until)
+    .order('created_at',{ascending:false})
+    .limit(500);
   state.orders = data || [];
   updateNewOrdersBadge();
+  const label = document.getElementById('orders-count-label');
+  if (label) label.textContent = `${state.orders.length} pedido${state.orders.length!==1?'s':''}`;
 }
 async function loadProducts() {
   const { data } = await sb.from('products').select('*,categories(name,emoji)').order('sort_order');
@@ -1039,6 +1064,24 @@ function playNotificationSound() {
 
 // ── NAV ──
 const panelTitles = {orders:'Pedidos en tiempo real',dashboard:'Dashboard',reports:'Reportes de ventas',products:'Productos',categories:'Categorías',rewards:'Recompensas',clients:'Clientes',settings:'Configuración'};
+function setDateFilter(days) {
+  const to = new Date();
+  const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const fmt = d => d.toISOString().slice(0,10);
+  document.getElementById('filter-date-from').value = fmt(from);
+  document.getElementById('filter-date-to').value = fmt(to);
+}
+
+async function applyOrderFilter() {
+  await loadOrders();
+  renderOrders();
+}
+
+document.getElementById('btn-filter-orders').onclick = applyOrderFilter;
+document.getElementById('btn-filter-today').onclick = async () => { setDateFilter(0); await applyOrderFilter(); };
+document.getElementById('btn-filter-week').onclick = async () => { setDateFilter(7); await applyOrderFilter(); };
+document.getElementById('btn-filter-month').onclick = async () => { setDateFilter(30); await applyOrderFilter(); };
+
 function setupNav() {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.onclick = () => {
