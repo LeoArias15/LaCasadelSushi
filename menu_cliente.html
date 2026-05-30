@@ -1563,6 +1563,8 @@ function createProductCard(p) {
 
   if (p.available) {
     card.querySelector('.product-top').addEventListener('click', () => openProductModal(p.id));
+    card.querySelector('.product-img').addEventListener('click', () => openProductModal(p.id));
+    card.querySelector('.product-img').style.cursor = 'pointer';
   }
   return card;
 }
@@ -1762,14 +1764,16 @@ function openProductModal(productId) {
   document.getElementById('pm-sushi-preview').innerHTML = '';
   document.getElementById('pm-sushi-preview-static').innerHTML = '';
 
-  const opts     = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
-  const baseType = getBaseType(p.name);
-  const max      = parseInt(p.options_max) || 2;
-  const optSec   = document.getElementById('pm-options-section');
-  const optList  = document.getElementById('pm-options-list');
-  const prevOnly = document.getElementById('pm-preview-only');
+  const opts      = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
+  const bases     = getBasePair(p.name);
+  const isCamaron = /camar[oó]/i.test(p.name);
+  const max       = parseInt(p.options_max) || 2;
+  const optSec    = document.getElementById('pm-options-section');
+  const optList   = document.getElementById('pm-options-list');
+  const prevOnly  = document.getElementById('pm-preview-only');
 
   if (opts.length) {
+    // Producto con selección de fruta
     const hint = max === 1 ? 'Elige 1 opción' : `Selecciona hasta ${max} opciones`;
     document.getElementById('pm-options-hint').textContent = hint;
     optList.innerHTML = opts.map(o =>
@@ -1777,15 +1781,26 @@ function openProductModal(productId) {
     ).join('');
     optSec.style.display = 'block';
     prevOnly.style.display = 'none';
-    // Mostrar preview inicial (mitad base + mitad gris si tiene base, o vacío)
-    initSushiPreview();
+    // Preview inicial: roll con la apariencia de la base (sin fruta aún)
+    const initLbl = bases[0] ? baseChip(bases[0]) : '';
+    document.getElementById('pm-sushi-preview').innerHTML =
+      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:5, shrimp:isCamaron, label:initLbl})}</div>`;
   } else {
+    // Producto fijo: sin opciones
     optSec.style.display = 'none';
-    // Sin opciones: mostrar preview estático del roll completo
-    if (baseType) {
-      const html = buildIngredientSVG(null, null, baseType, true);
+    let svgHTML = '';
+    if (bases.length >= 2) {
+      // Dos bases detectadas → mitad/mitad
+      const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
+      svgHTML = buildRollSVG(bases[0], bases[1], {lines:11, shrimp:isCamaron, label:lbl});
+    } else if (bases.length === 1) {
+      svgHTML = buildRollSVG(bases[0], null, {lines:11, shrimp:isCamaron, label:baseChip(bases[0])});
+    } else if (isCamaron) {
+      svgHTML = buildRollSVG(null, null, {lines:11, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+    }
+    if (svgHTML) {
       document.getElementById('pm-sushi-preview-static').innerHTML =
-        `<div class="sushi-preview-wrap">${html}</div>`;
+        `<div class="sushi-preview-wrap">${svgHTML}</div>`;
       prevOnly.style.display = 'block';
     } else {
       prevOnly.style.display = 'none';
@@ -2637,15 +2652,173 @@ function getBaseType(productName) {
   return null;
 }
 
-// outerFill: ID del gradiente SVG para el anillo exterior de la base
-// chipColor: color del chip en la etiqueta
 const BASE_META = {
   empanizado:   { outerFill: 'url(#g-empa)',    chipColor: '#c88218', label: 'Empanizado'   },
   california:   { outerFill: 'url(#g-nori)',     chipColor: '#444',   label: 'California'   },
   philadelphia: { outerFill: 'url(#g-philly)',  chipColor: '#999',    label: 'Philadelphia' },
 };
 
-function buildIngredientSVG(flavor1, flavor2, baseType, fullRoll) {
+// Devuelve hasta 2 bases detectadas en el nombre del producto
+function getBasePair(name) {
+  const n = name || '';
+  const bases = [];
+  if (/california/i.test(n))   bases.push('california');
+  if (/empaniz/i.test(n))      bases.push('empanizado');
+  if (/philadelphia/i.test(n)) bases.push('philadelphia');
+  return bases;
+}
+
+function baseChip(type) {
+  const m = BASE_META[type];
+  if (!m) return '';
+  return `<span class="sushi-flavor-chip" style="background:${m.chipColor}">${m.label}</span>`;
+}
+
+// ── Build Roll SVG ──────────────────────────────────────────────────────────
+// left : 'california'|'empanizado'|'philadelphia'|'#hexcolor'|null
+// right: igual que left, 'PENDING' (gris punteado), o null = círculo completo
+// opts.lines : número de líneas de corte (5 → 6 rollos, 11 → 12 rollos)
+// opts.shrimp: boolean — camarones encima
+// opts.label : HTML del label
+function buildRollSVG(left, right, opts = {}) {
+  const { lines = 5, shrimp = false, label = '' } = opts;
+  const cx = 80, cy = 80, w = 160, h = 160;
+  const outerR = 76, noriR = 64, riceR = 57, fillR = 33;
+  const tTop = cy - outerR;   // = 4
+  const tH   = 44;
+
+  const resolveF = (v) => {
+    if (!v) return 'url(#g-rice-out)';
+    if (v.startsWith('#') || v.startsWith('rgb')) return v;
+    return BASE_META[v]?.outerFill || 'url(#g-rice-out)';
+  };
+
+  const isSplit   = right !== null;
+  const isPending = right === 'PENDING';
+  const leftFill  = resolveF(left);
+  const rightFill = isPending ? '#d8d8d8' : resolveF(right);
+
+  // ── Anillo exterior ──
+  let outerRing;
+  if (!isSplit) {
+    outerRing = `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"/>`;
+  } else {
+    outerRing = `
+      <clipPath id="ol"><rect x="0"    y="0" width="${cx}" height="${h}"/></clipPath>
+      <clipPath id="or"><rect x="${cx}" y="0" width="${cx}" height="${h}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"  clip-path="url(#ol)"/>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${rightFill}" clip-path="url(#or)"/>
+      ${isPending ? `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="#aaa" stroke-width="2.5" stroke-dasharray="6,5" clip-path="url(#or)"/>` : ''}
+      <line x1="${cx}" y1="${cy-outerR+2}" x2="${cx}" y2="${cy+outerR-2}" stroke="rgba(255,255,255,0.75)" stroke-width="2.5"/>`;
+  }
+
+  // ── Texturas de base ──
+  const lc = isSplit ? `clip-path="url(#ol)"` : '';
+  const rc = `clip-path="url(#or)"`;
+
+  const empaDots = (cx0, offset) => [
+    [cx0-20*offset, cy-60, 3],[cx0+4*offset, cy-66, 2.5],
+    [cx0-38*offset, cy-42, 2.5],[cx0-54*offset, cy+12, 2],
+    [cx0-32*offset, cy+54, 2.5],[cx0-8*offset, cy+62, 2],
+  ].map(([x,y,r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fac040" opacity="0.45"/>`).join('');
+
+  const phillySeed = (x, y, rot) =>
+    `<ellipse cx="${x}" cy="${y}" rx="2.7" ry="1.3" fill="#c8b868" opacity="0.82" transform="rotate(${rot},${x},${y})"/>`;
+
+  let textures = '';
+  if (left === 'empanizado') textures += `<g ${lc}>${empaDots(cx, 1)}</g>`;
+  if (right === 'empanizado') textures += `<g ${rc}>${empaDots(cx, -1)}</g>`;
+  if (left === 'philadelphia') textures += `<g ${lc}>
+    ${phillySeed(cx-18, cy-72, 30)}${phillySeed(cx-4, cy-74,-15)}
+    ${phillySeed(cx-30, cy-66, 45)}${phillySeed(cx-44,cy-52, 20)}
+    ${phillySeed(cx-12, cy-70,-30)}</g>`;
+  if (right === 'philadelphia') textures += `<g ${rc}>
+    ${phillySeed(cx+18, cy-72,-30)}${phillySeed(cx+4, cy-74, 15)}
+    ${phillySeed(cx+30, cy-66,-45)}${phillySeed(cx+44,cy-52,-20)}
+    ${phillySeed(cx+12, cy-70, 30)}</g>`;
+
+  // ── Líneas de corte (siempre sobre todo el ancho) ──
+  const xL = cx - 65, xR = cx + 65;
+  const step = (xR - xL) / (lines + 1);
+  let sliceLines = '';
+  for (let i = 1; i <= lines; i++) {
+    const x = xL + step * i;
+    sliceLines += `<line x1="${x.toFixed(1)}" y1="${tTop+2}" x2="${x.toFixed(1)}" y2="${tTop+tH-2}" stroke="rgba(255,255,255,0.30)" stroke-width="1.2"/>`;
+  }
+  const tLines = `
+    <clipPath id="tcl"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tH}"/></clipPath>
+    ${sliceLines}
+    <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="rgba(255,255,255,0.07)" clip-path="url(#tcl)"/>`;
+
+  // ── Camarones encima ──
+  const shrimpSVG = shrimp ? (() => {
+    const t = tTop;
+    const sp = [ // [cx offset, y base, scale]
+      [-44, t+22, 1], [-22, t+16, 1], [0, t+12, 1.1], [22, t+16, 1], [44, t+22, 1],
+    ];
+    return `<clipPath id="stc"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tH+4}"/></clipPath>
+    <g clip-path="url(#stc)">` +
+    sp.map(([dx, sy, sc]) => {
+      const sx = cx + dx, hw = 9 * sc, ht = 12 * sc;
+      return `<path d="M ${sx-hw} ${sy+4} Q ${sx-hw} ${sy-ht} ${sx} ${sy-ht-2} Q ${sx+hw} ${sy-ht} ${sx+hw} ${sy+4}"
+              fill="none" stroke="#f08868" stroke-width="${3.5*sc}" stroke-linecap="round"/>
+              <circle cx="${sx+hw}" cy="${sy+4}" r="${2*sc}" fill="#f5a080"/>`;
+    }).join('') + `</g>`;
+  })() : '';
+
+  // ── Granos de arroz ──
+  const grains = [
+    [cx-54,cy-22,18],[cx-46,cy-40,-14],[cx-26,cy-54,6],
+    [cx+4,cy-60,28],[cx+26,cy-54,-10],[cx+48,cy-36,16],
+    [cx+58,cy-8,-4],[cx+58,cy+22,24],[cx+48,cy+42,-8],
+    [cx+26,cy+56,10],[cx-2,cy+60,-18],[cx-30,cy+52,7],
+    [cx-50,cy+38,-11],[cx-58,cy+8,20],[cx-56,cy-16,-4],
+  ].map(([gx,gy,r]) =>
+    `<ellipse cx="${gx}" cy="${gy}" rx="3.2" ry="1.3" fill="#c4c0a0" opacity="0.45" transform="rotate(${r},${gx},${gy})"/>`
+  ).join('');
+
+  // ── Relleno ──
+  const filling = `
+    <circle cx="${cx}" cy="${cy}" r="${fillR}" fill="url(#g-cream)"/>
+    <path d="M ${cx-12} ${cy-13} C ${cx-8} ${cy-23} ${cx+8} ${cy-23} ${cx+12} ${cy-13} C ${cx+10} ${cy-9} ${cx-10} ${cy-9} ${cx-12} ${cy-13} Z" fill="url(#g-zan)"/>
+    <path d="M ${cx-7} ${cy-15} C ${cx-2} ${cy-20} ${cx+4} ${cy-18} ${cx+8} ${cy-14}" fill="none" stroke="#f0a840" stroke-width="1.1" opacity="0.45"/>
+    <circle cx="${cx+18}" cy="${cy+7}" r="9.5" fill="#247012"/>
+    <circle cx="${cx+18}" cy="${cy+7}" r="7"   fill="#9cd848"/>
+    <circle cx="${cx+18}" cy="${cy+7}" r="4.5" fill="#d2f298"/>
+    <circle cx="${cx+18}" cy="${cy+7}" r="2.2" fill="#eefce2"/>
+    <circle cx="${cx+16}" cy="${cy+5}" r="1"   fill="#68a828" opacity="0.82"/>
+    <circle cx="${cx+20}" cy="${cy+6}" r="1"   fill="#68a828" opacity="0.82"/>
+    <circle cx="${cx+18}" cy="${cy+10}" r="1"  fill="#68a828" opacity="0.82"/>
+    <path d="M ${cx-13} ${cy+12} C ${cx-17} ${cy+21} ${cx-8} ${cy+28} ${cx} ${cy+28} C ${cx+8} ${cy+28} ${cx+17} ${cy+21} ${cx+13} ${cy+12} C ${cx+9} ${cy+16} ${cx} ${cy+18} ${cx} ${cy+18} C ${cx-8} ${cy+17} ${cx-9} ${cy+15} ${cx-13} ${cy+12} Z" fill="url(#g-cam)"/>
+    <path d="M ${cx-8} ${cy+14} C ${cx} ${cy+20} ${cx+8} ${cy+14}" fill="none" stroke="#ffd8c8" stroke-width="1.6" opacity="0.55"/>
+    <path d="M ${cx-12} ${cy-14} C ${cx-24} ${cy-5} ${cx-26} ${cy+10} ${cx-17} ${cy+20} C ${cx-12} ${cy+24} ${cx-7} ${cy+20} ${cx-9} ${cy+10} C ${cx-11} ${cy+1} ${cx-9} ${cy-6} ${cx-12} ${cy-14} Z" fill="url(#g-agua)"/>
+    <path d="M ${cx-14} ${cy-4} C ${cx-20} ${cy+8} ${cx-18} ${cy+16} ${cx-11} ${cy+18}" fill="none" stroke="#b0e050" stroke-width="1.2" opacity="0.38"/>
+    <circle cx="${cx+4}" cy="${cy-4}" r="9"   fill="#fffdf5" opacity="0.80"/>
+    <circle cx="${cx+3}" cy="${cy-5}" r="5.5" fill="#ffffff"  opacity="0.50"/>`;
+
+  const defs = `<defs>
+    <radialGradient id="g-empa"     cx="50%" cy="28%" r="72%"><stop offset="0%"   stop-color="#e89028"/><stop offset="100%" stop-color="#884808"/></radialGradient>
+    <radialGradient id="g-rice-out" cx="50%" cy="38%" r="62%"><stop offset="0%"   stop-color="#f8f8ee"/><stop offset="100%" stop-color="#dedad0"/></radialGradient>
+    <radialGradient id="g-philly"   cx="50%" cy="38%" r="62%"><stop offset="0%"   stop-color="#fdfcf8"/><stop offset="100%" stop-color="#e8e6dc"/></radialGradient>
+    <radialGradient id="g-nori"     cx="50%" cy="35%" r="65%"><stop offset="0%"   stop-color="#1e1e12"/><stop offset="100%" stop-color="#080806"/></radialGradient>
+    <radialGradient id="g-rice"     cx="50%" cy="42%" r="58%"><stop offset="0%"   stop-color="#f8f8ec"/><stop offset="100%" stop-color="#e4e0cc"/></radialGradient>
+    <radialGradient id="g-cream"    cx="42%" cy="38%" r="65%"><stop offset="0%"   stop-color="#fffbf2"/><stop offset="100%" stop-color="#eedcb8"/></radialGradient>
+    <radialGradient id="g-zan"      cx="25%" cy="25%" r="75%"><stop offset="0%"   stop-color="#f8a028"/><stop offset="100%" stop-color="#c05a08"/></radialGradient>
+    <radialGradient id="g-agua"     cx="30%" cy="28%" r="72%"><stop offset="0%"   stop-color="#90d838"/><stop offset="100%" stop-color="#387010"/></radialGradient>
+    <radialGradient id="g-cam"      cx="38%" cy="28%" r="72%"><stop offset="0%"   stop-color="#f8b0a0"/><stop offset="100%" stop-color="#d04838"/></radialGradient>
+  </defs>`;
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" width="170" height="170" style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.28))">
+      ${defs}${outerRing}${textures}${tLines}${shrimpSVG}
+      <circle cx="${cx}" cy="${cy}" r="${noriR}" fill="url(#g-nori)"/>
+      <circle cx="${cx}" cy="${cy}" r="${riceR}"  fill="url(#g-rice)"/>
+      ${grains}${filling}
+    </svg>
+    ${label ? `<div class="sushi-preview-label">${label}</div>` : ''}`;
+}
+
+function _DELETED_buildIngredientSVG(flavor1, flavor2, baseType, fullRoll) { return ''; if(false) {
   const baseMeta     = baseType ? BASE_META[baseType] : null;
   const isEmpanizado = baseType === 'empanizado';
   const isPhilly     = baseType === 'philadelphia';
@@ -2869,32 +3042,28 @@ function buildIngredientSVG(flavor1, flavor2, baseType, fullRoll) {
       ${filling}
     </svg>
     <div class="sushi-preview-label">${label}</div>`;
-}
+} } // end _DELETED
 
+// Actualiza el preview cuando el usuario elige una fruta (options_max=1)
 function renderSushiPreview() {
   const el = document.getElementById('pm-sushi-preview');
   if (!el) return;
+  const p = state.currentProduct;
   const sel = state.selectedOptions || [];
-  const baseType = getBaseType(state.currentProduct?.name);
+  const bases = getBasePair(p?.name || '');
+  const isCamaron = /camar[oó]/i.test(p?.name || '');
+
   if (!sel.length) {
-    // Sin selección: mostrar base + gris punteado (si hay base) o vacío
-    if (baseType) initSushiPreview();
-    else el.innerHTML = '';
+    // Sin selección → mostrar roll con el look de la base
+    const lbl = bases[0] ? baseChip(bases[0]) : '';
+    el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:5, shrimp:isCamaron, label:lbl})}</div>`;
     return;
   }
-  const previewHTML = buildIngredientSVG(sel[0] || null, sel[1] || null, baseType, false);
-  el.innerHTML = `<div class="sushi-preview-wrap">${previewHTML}</div>`;
-}
-
-function initSushiPreview() {
-  const p = state.currentProduct;
-  if (!p) return;
-  const baseType = getBaseType(p.name);
-  const el = document.getElementById('pm-sushi-preview');
-  if (!el) return;
-  // Muestra la base (izq) + mitad derecha gris punteada hasta que elijan sabor
-  const html = buildIngredientSVG(null, null, baseType, false);
-  el.innerHTML = `<div class="sushi-preview-wrap">${html}</div>`;
+  // Fruta elegida → anillo COMPLETO con el color de la fruta
+  const fruitColor = getFlavorColor(sel[0]);
+  const fruitCh = `<span class="sushi-flavor-chip" style="background:${fruitColor}">${sel[0]}</span>`;
+  const lbl = bases[0] ? `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fruitCh}` : fruitCh;
+  el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(fruitColor, null, {lines:5, shrimp:isCamaron, label:lbl})}</div>`;
 }
 
 function toggleOption(btn, option) {
