@@ -346,15 +346,19 @@ body{
 .qty-num{font-weight:500;min-width:20px;text-align:center;font-size:15px;}
 
 /* ── PRODUCT DETAIL MODAL ── */
-.product-modal .modal-sheet{padding:0 0 48px;pointer-events:none;background:rgba(255,255,255,0.92);}
+.product-modal .modal-sheet{
+  padding:0;pointer-events:none;background:rgba(255,255,255,0.92);
+  max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;
+}
 .product-modal.open .modal-sheet{pointer-events:all;}
 .product-modal-img{
-  width:100%;height:220px;
+  width:100%;height:160px;flex-shrink:0;
   background:var(--paper-warm);
   display:flex;align-items:center;justify-content:center;font-size:64px;
 }
 .product-modal-img img{width:100%;height:100%;object-fit:cover;}
-.product-modal-body{padding:24px 24px 0;}
+.product-modal-body{padding:20px 24px 8px;overflow-y:auto;flex:1;overscroll-behavior:contain;}
+.modal-add-row{flex-shrink:0;background:var(--paper-card);border-top:1px solid var(--border);padding:12px 24px 24px;margin-top:0;}
 .product-modal-name{
   font-family:var(--ff-display);font-size:32px;font-weight:300;margin-bottom:6px;
 }
@@ -1784,7 +1788,7 @@ function openProductModal(productId) {
     // Preview inicial: roll con la apariencia de la base (sin fruta aún)
     const initLbl = bases[0] ? baseChip(bases[0]) : '';
     document.getElementById('pm-sushi-preview').innerHTML =
-      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:5, shrimp:isCamaron, label:initLbl})}</div>`;
+      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:12, shrimp:isCamaron, label:initLbl})}</div>`;
   } else {
     // Producto fijo: sin opciones
     optSec.style.display = 'none';
@@ -1792,11 +1796,11 @@ function openProductModal(productId) {
     if (bases.length >= 2) {
       // Dos bases detectadas → mitad/mitad
       const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
-      svgHTML = buildRollSVG(bases[0], bases[1], {lines:11, shrimp:isCamaron, label:lbl});
+      svgHTML = buildRollSVG(bases[0], bases[1], {lines:12, shrimp:isCamaron, label:lbl});
     } else if (bases.length === 1) {
-      svgHTML = buildRollSVG(bases[0], null, {lines:11, shrimp:isCamaron, label:baseChip(bases[0])});
+      svgHTML = buildRollSVG(bases[0], null, {lines:12, shrimp:isCamaron, label:baseChip(bases[0])});
     } else if (isCamaron) {
-      svgHTML = buildRollSVG(null, null, {lines:11, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+      svgHTML = buildRollSVG(null, null, {lines:12, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
     }
     if (svgHTML) {
       document.getElementById('pm-sushi-preview-static').innerHTML =
@@ -3053,17 +3057,41 @@ function renderSushiPreview() {
   const bases = getBasePair(p?.name || '');
   const isCamaron = /camar[oó]/i.test(p?.name || '');
 
+  const fc = (name, color) => `<span class="sushi-flavor-chip" style="background:${color}">${name}</span>`;
+
   if (!sel.length) {
-    // Sin selección → mostrar roll con el look de la base
+    // Sin selección → roll completo con apariencia de la base
     const lbl = bases[0] ? baseChip(bases[0]) : '';
-    el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:5, shrimp:isCamaron, label:lbl})}</div>`;
+    el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:12, shrimp:isCamaron, label:lbl})}</div>`;
     return;
   }
-  // Fruta elegida → anillo COMPLETO con el color de la fruta
-  const fruitColor = getFlavorColor(sel[0]);
-  const fruitCh = `<span class="sushi-flavor-chip" style="background:${fruitColor}">${sel[0]}</span>`;
-  const lbl = bases[0] ? `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fruitCh}` : fruitCh;
-  el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(fruitColor, null, {lines:5, shrimp:isCamaron, label:lbl})}</div>`;
+
+  const c1 = getFlavorColor(sel[0]);
+  const c2 = sel[1] ? getFlavorColor(sel[1]) : null;
+
+  let left, right, lbl;
+  if (bases[0] && !c2) {
+    // Base + 1 fruta → base izquierda / fruta derecha
+    left  = bases[0];
+    right = c1;
+    lbl   = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fc(sel[0],c1)}`;
+  } else if (bases[0] && c2) {
+    // Base + 2 frutas → fruta1 izquierda / fruta2 derecha
+    left  = c1;
+    right = c2;
+    lbl   = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fc(sel[0],c1)} <span style="color:var(--ink-muted)">+</span> ${fc(sel[1],c2)}`;
+  } else if (c2) {
+    // Sin base + 2 frutas → mitad/mitad
+    left  = c1;
+    right = c2;
+    lbl   = `${fc(sel[0],c1)} <span style="color:var(--ink-muted)">+</span> ${fc(sel[1],c2)}`;
+  } else {
+    // Sin base + 1 fruta → anillo completo
+    left  = c1;
+    right = null;
+    lbl   = fc(sel[0], c1);
+  }
+  el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(left, right, {lines:12, shrimp:isCamaron, label:lbl})}</div>`;
 }
 
 function toggleOption(btn, option) {
