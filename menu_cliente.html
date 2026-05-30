@@ -1021,17 +1021,21 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
 
 <!-- PRODUCT DETAIL MODAL -->
 <div class="modal-overlay product-modal" id="product-modal">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="position:relative">
+    <button class="btn-close" style="position:absolute;top:12px;right:12px;z-index:10;background:rgba(255,255,255,0.88);backdrop-filter:blur(4px)" onclick="closeModal('product-modal')">✕</button>
     <div class="product-modal-img" id="pm-img"></div>
     <div class="product-modal-body">
       <h2 class="product-modal-name" id="pm-name"></h2>
       <p class="product-modal-desc" id="pm-desc"></p>
       <div class="product-modal-price" id="pm-price"></div>
       <div id="pm-options-section" style="display:none;margin-bottom:16px">
-        <span class="notes-label">Elige tu sabor</span>
+        <span class="notes-label" id="pm-options-label">Elige tu sabor</span>
         <div id="pm-options-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
-        <div style="font-size:11px;color:var(--ink-muted);margin-top:6px">Selecciona hasta 2 opciones</div>
+        <div id="pm-options-hint" style="font-size:11px;color:var(--ink-muted);margin-top:6px"></div>
         <div id="pm-sushi-preview"></div>
+      </div>
+      <div id="pm-preview-only" style="display:none;margin-bottom:16px">
+        <div id="pm-sushi-preview-static"></div>
       </div>
       <label class="notes-label">Notas especiales (opcional)</label>
       <textarea class="notes-input" id="pm-notes" placeholder="Sin cebollín, extra aguacate, etc."></textarea>
@@ -1755,18 +1759,37 @@ function openProductModal(productId) {
   document.getElementById('pm-total').textContent = '$' + p.price.toFixed(0);
 
   state.selectedOptions = [];
-  const previewEl = document.getElementById('pm-sushi-preview');
-  if (previewEl) previewEl.innerHTML = '';
-  const opts = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
-  const optSec = document.getElementById('pm-options-section');
-  const optList = document.getElementById('pm-options-list');
+  document.getElementById('pm-sushi-preview').innerHTML = '';
+  document.getElementById('pm-sushi-preview-static').innerHTML = '';
+
+  const opts     = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
+  const baseType = getBaseType(p.name);
+  const max      = parseInt(p.options_max) || 2;
+  const optSec   = document.getElementById('pm-options-section');
+  const optList  = document.getElementById('pm-options-list');
+  const prevOnly = document.getElementById('pm-preview-only');
+
   if (opts.length) {
+    const hint = max === 1 ? 'Elige 1 opción' : `Selecciona hasta ${max} opciones`;
+    document.getElementById('pm-options-hint').textContent = hint;
     optList.innerHTML = opts.map(o =>
       `<button type="button" class="option-btn" onclick="toggleOption(this,'${o.replace(/'/g,"\\'")}')"> ${o}</button>`
     ).join('');
     optSec.style.display = 'block';
+    prevOnly.style.display = 'none';
+    // Mostrar preview inicial (mitad base + mitad gris si tiene base, o vacío)
+    initSushiPreview();
   } else {
     optSec.style.display = 'none';
+    // Sin opciones: mostrar preview estático del roll completo
+    if (baseType) {
+      const html = buildIngredientSVG(null, null, baseType, true);
+      document.getElementById('pm-sushi-preview-static').innerHTML =
+        `<div class="sushi-preview-wrap">${html}</div>`;
+      prevOnly.style.display = 'block';
+    } else {
+      prevOnly.style.display = 'none';
+    }
   }
 
   openModal('product-modal');
@@ -2622,15 +2645,16 @@ const BASE_META = {
   philadelphia: { outerFill: 'url(#g-philly)',  chipColor: '#999',    label: 'Philadelphia' },
 };
 
-function buildIngredientSVG(flavor1, flavor2, baseType) {
+function buildIngredientSVG(flavor1, flavor2, baseType, fullRoll) {
   const baseMeta     = baseType ? BASE_META[baseType] : null;
   const isEmpanizado = baseType === 'empanizado';
   const isPhilly     = baseType === 'philadelphia';
 
-  // izq: fill del anillo exterior de la base; der: color de la fruta elegida
-  const leftFill   = baseMeta ? baseMeta.outerFill : getFlavorColor(flavor1);
-  const rightColor = flavor2 ? getFlavorColor(flavor2) : getFlavorColor(flavor1);
-  const isSplit    = !!(baseMeta || flavor2);
+  const pendingFruit = baseMeta && !flavor1; // base existe pero aún no eligen fruta
+
+  const leftFill   = baseMeta ? baseMeta.outerFill : (flavor1 ? getFlavorColor(flavor1) : '#e0e0e0');
+  const rightColor = flavor1  ? getFlavorColor(flavor1) : null;
+  const isSplit    = !fullRoll && !!(baseMeta || flavor2);
   const cx = 80, cy = 80, w = 160, h = 160;
   const outerR = 76;  // borde exterior del roll
   const noriR  = 64;  // anillo de nori (DENTRO del arroz exterior)
@@ -2679,10 +2703,21 @@ function buildIngredientSVG(flavor1, flavor2, baseType) {
     </radialGradient>
   </defs>`;
 
-  // ── Anillo exterior: izq=base / der=fruta (o completo si 1 sabor) ──
+  // ── Anillo exterior: izq=base / der=fruta (o completo si fullRoll/1 sabor) ──
   let outerRing;
   if (!isSplit) {
     outerRing = `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"/>`;
+  } else if (pendingFruit) {
+    // Mitad izq = base, mitad der = gris punteada (esperando selección)
+    outerRing = `
+      <clipPath id="ol"><rect x="0"    y="0" width="${cx}" height="${h}"/></clipPath>
+      <clipPath id="or"><rect x="${cx}" y="0" width="${cx}" height="${h}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}" clip-path="url(#ol)"/>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="#d8d8d8"    clip-path="url(#or)"/>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="#aaa"
+              stroke-width="3" stroke-dasharray="7,5" clip-path="url(#or)"/>
+      <line x1="${cx}" y1="${cy-outerR+1}" x2="${cx}" y2="${cy+outerR-1}"
+            stroke="rgba(255,255,255,0.72)" stroke-width="2.5"/>`;
   } else {
     outerRing = `
       <clipPath id="ol"><rect x="0"    y="0" width="${cx}" height="${h}"/></clipPath>
@@ -2723,9 +2758,9 @@ function buildIngredientSVG(flavor1, flavor2, baseType) {
 
   // ── Líneas de rebanadas y shimmer en el área del topping ──
   const slices = (xFrom, xTo) => {
-    const step = (xTo - xFrom) / 5;
+    const step = (xTo - xFrom) / 6; // 5 líneas = 6 secciones (6 rollos por mitad)
     let s = '';
-    for (let i = 1; i < 5; i++) {
+    for (let i = 1; i < 6; i++) {
       const x = xFrom + step * i;
       s += `<line x1="${x.toFixed(1)}" y1="${tTop+2}" x2="${x.toFixed(1)}" y2="${tTop+tH-2}" stroke="rgba(255,255,255,0.30)" stroke-width="1.2"/>`;
     }
@@ -2808,8 +2843,10 @@ function buildIngredientSVG(flavor1, flavor2, baseType) {
   // ── Label ──
   let label;
   if (baseMeta) {
-    const fc = `<span class="sushi-flavor-chip" style="background:${rightColor}">${flavor1}</span>`;
     const bc = `<span class="sushi-flavor-chip" style="background:${baseMeta.chipColor}">${baseMeta.label}</span>`;
+    const fc = pendingFruit
+      ? `<span class="sushi-flavor-chip" style="background:#bbb;border:2px dashed #999">Elige sabor</span>`
+      : `<span class="sushi-flavor-chip" style="background:${rightColor}">${flavor1}</span>`;
     label = `${bc} <span style="color:var(--ink-muted)">+</span> ${fc}`;
   } else if (flavor2) {
     const ch1 = `<span class="sushi-flavor-chip" style="background:${getFlavorColor(flavor1)}">${flavor1}</span>`;
@@ -2838,22 +2875,42 @@ function renderSushiPreview() {
   const el = document.getElementById('pm-sushi-preview');
   if (!el) return;
   const sel = state.selectedOptions || [];
-  if (!sel.length) { el.innerHTML = ''; return; }
-
   const baseType = getBaseType(state.currentProduct?.name);
-  const previewHTML = buildIngredientSVG(sel[0], sel[1], baseType);
-
+  if (!sel.length) {
+    // Sin selección: mostrar base + gris punteado (si hay base) o vacío
+    if (baseType) initSushiPreview();
+    else el.innerHTML = '';
+    return;
+  }
+  const previewHTML = buildIngredientSVG(sel[0] || null, sel[1] || null, baseType, false);
   el.innerHTML = `<div class="sushi-preview-wrap">${previewHTML}</div>`;
 }
 
+function initSushiPreview() {
+  const p = state.currentProduct;
+  if (!p) return;
+  const baseType = getBaseType(p.name);
+  const el = document.getElementById('pm-sushi-preview');
+  if (!el) return;
+  // Muestra la base (izq) + mitad derecha gris punteada hasta que elijan sabor
+  const html = buildIngredientSVG(null, null, baseType, false);
+  el.innerHTML = `<div class="sushi-preview-wrap">${html}</div>`;
+}
+
 function toggleOption(btn, option) {
-  const max = state.currentProduct?.options_max || 2;
+  const max = parseInt(state.currentProduct?.options_max) || 2;
   if (btn.classList.contains('selected')) {
+    // Deseleccionar
     btn.classList.remove('selected');
     state.selectedOptions = (state.selectedOptions||[]).filter(o => o !== option);
   } else {
-    if ((state.selectedOptions||[]).length >= max) {
-      showToast(max === 1 ? 'Solo puedes elegir 1 opción' : `Máximo ${max} opciones`);
+    if (max === 1) {
+      // Radio: deseleccionar la opción anterior automáticamente
+      document.querySelectorAll('#pm-options-list .option-btn.selected')
+        .forEach(b => b.classList.remove('selected'));
+      state.selectedOptions = [];
+    } else if ((state.selectedOptions||[]).length >= max) {
+      showToast(`Máximo ${max} opciones`);
       return;
     }
     btn.classList.add('selected');
