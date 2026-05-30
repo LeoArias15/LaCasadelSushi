@@ -1756,6 +1756,7 @@ document.getElementById('product-form-modal').onclick = e => { if(e.target.id===
 
 document.getElementById('btn-save-product').onclick = async () => {
   const id = document.getElementById('pf-id').value;
+  console.log('🖼 image_url al guardar:', document.getElementById('pf-img-url').value);
   const data = {
     name: document.getElementById('pf-name').value,
     description: document.getElementById('pf-desc').value,
