@@ -1788,7 +1788,7 @@ function openProductModal(productId) {
     // Preview inicial: roll con la apariencia de la base (sin fruta aún)
     const initLbl = bases[0] ? baseChip(bases[0]) : '';
     document.getElementById('pm-sushi-preview').innerHTML =
-      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:12, shrimp:isCamaron, label:initLbl})}</div>`;
+      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:11, shrimp:isCamaron, label:initLbl})}</div>`;
   } else {
     // Producto fijo: sin opciones
     optSec.style.display = 'none';
@@ -1796,11 +1796,11 @@ function openProductModal(productId) {
     if (bases.length >= 2) {
       // Dos bases detectadas → mitad/mitad
       const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
-      svgHTML = buildRollSVG(bases[0], bases[1], {lines:12, shrimp:isCamaron, label:lbl});
+      svgHTML = buildRollSVG(bases[0], bases[1], {lines:11, shrimp:isCamaron, label:lbl});
     } else if (bases.length === 1) {
-      svgHTML = buildRollSVG(bases[0], null, {lines:12, shrimp:isCamaron, label:baseChip(bases[0])});
+      svgHTML = buildRollSVG(bases[0], null, {lines:11, shrimp:isCamaron, label:baseChip(bases[0])});
     } else if (isCamaron) {
-      svgHTML = buildRollSVG(null, null, {lines:12, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+      svgHTML = buildRollSVG(null, null, {lines:11, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
     }
     if (svgHTML) {
       document.getElementById('pm-sushi-preview-static').innerHTML =
