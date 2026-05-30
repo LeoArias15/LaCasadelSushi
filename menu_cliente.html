@@ -318,6 +318,13 @@ body{
   font-size:10px;padding:2px 8px;border-radius:12px;letter-spacing:0.04em;
 }
 .tag-featured{background:var(--gold-light);color:var(--gold);}
+.featured-star{
+  position:absolute;top:6px;left:6px;z-index:2;
+  width:24px;height:24px;border-radius:50%;
+  background:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;box-shadow:0 2px 6px rgba(0,0,0,0.2);
+}
 .tag-unavailable{background:#fee2e2;color:#991b1b;}
 .product-footer{display:flex;align-items:center;justify-content:space-between;}
 .product-price{
@@ -1529,6 +1536,7 @@ function renderMenu() {
 function createProductCard(p) {
   const card = document.createElement('div');
   card.className = 'product-card' + (!p.available ? ' unavailable' : '');
+  card.style.position = 'relative';
 
   const cartItem = state.cart.find(c => c.id === p.id);
   const qty = cartItem?.quantity || 0;
@@ -1538,6 +1546,7 @@ function createProductCard(p) {
     : getCategoryEmoji(p);
 
   card.innerHTML = `
+    ${p.featured ? '<div class="featured-star" title="Popular">★</div>' : ''}
     <div class="product-img">${imgContent}</div>
     <div class="product-body">
       <div class="product-top">
@@ -1769,8 +1778,11 @@ function openProductModal(productId) {
   document.getElementById('pm-sushi-preview-static').innerHTML = '';
 
   const opts      = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
-  const bases     = getBasePair(p.name);
-  const isCamaron = /camar[oó]/i.test(p?.name || '');
+  const pc        = p.preview_config || {};
+  const bases     = pc.outer
+    ? [pc.outer, pc.right_base].filter(Boolean)
+    : getBasePair(p.name);
+  const isCamaron = bases.includes('camaron') || /camar[oó]/i.test(p?.name || '');
   const max       = parseInt(p.options_max) || 2;
   const optSec    = document.getElementById('pm-options-section');
   const optList   = document.getElementById('pm-options-list');
@@ -1793,14 +1805,23 @@ function openProductModal(productId) {
     // Producto fijo: sin opciones
     optSec.style.display = 'none';
     let svgHTML = '';
+    const fixedTopping = pc.topping_color || null;
+    const fixedLbl     = pc.topping_name
+      ? `<span class="sushi-flavor-chip" style="background:${pc.topping_color||'#888'}">${pc.topping_name}</span>`
+      : null;
+
     if (bases.length >= 2) {
-      // Dos bases detectadas → mitad/mitad
       const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
-      svgHTML = buildRollSVG(bases[0], bases[1], {lines:11, shrimp:isCamaron, label:lbl});
+      svgHTML = buildRollSVG(bases[0], bases[1], {lines:12, shrimp:isCamaron, label:lbl});
+    } else if (bases.length === 1 && fixedTopping) {
+      const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fixedLbl||''}`;
+      svgHTML = buildRollSVG(bases[0], fixedTopping, {lines:12, shrimp:isCamaron, label:lbl});
     } else if (bases.length === 1) {
-      svgHTML = buildRollSVG(bases[0], null, {lines:11, shrimp:isCamaron, label:baseChip(bases[0])});
+      svgHTML = buildRollSVG(bases[0], null, {lines:12, shrimp:isCamaron, label:baseChip(bases[0])});
     } else if (isCamaron) {
-      svgHTML = buildRollSVG(null, null, {lines:11, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+      svgHTML = buildRollSVG(null, null, {lines:12, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+    } else if (fixedTopping) {
+      svgHTML = buildRollSVG(fixedTopping, null, {lines:12, label:fixedLbl||''});
     }
     if (svgHTML) {
       document.getElementById('pm-sushi-preview-static').innerHTML =
@@ -2664,7 +2685,7 @@ const BASE_META = {
   california:   { outerFill: 'url(#g-nori)',    topFill: null,          noTopping: true,  chipColor: '#444',   label: 'California'   },
   philadelphia: { outerFill: 'url(#g-rice-out)', topFill: null,         noTopping: false, chipColor: '#999',   label: 'Philadelphia' },
   aguacate:     { outerFill: 'url(#g-rice-out)', topFill: 'url(#g-agua)', noTopping: false, chipColor: '#4a9e28', label: 'Aguacate' },
-  camaron:      { outerFill: 'url(#g-cam)',      topFill: null,          noTopping: false, chipColor: '#d04838', label: 'Camarón'  },
+  camaron:      { outerFill: 'url(#g-rice-out)', topFill: null,          noTopping: false, chipColor: '#d04838', label: 'Camarón'  },
   // ── NUEVO PRODUCTO: agrega aquí el tipo y en getBasePair() su regex ──
 };
 
@@ -2713,10 +2734,10 @@ function buildRollSVG(left, right, opts = {}) {
   const isPending    = right === 'PENDING';
   const isSplit      = right !== null && right !== undefined;
 
-  // El anillo exterior siempre muestra el color BASE (nunca la fruta directamente)
   const leftFill  = resolveF(left);
+  // En el split: la mitad derecha muestra el color de la fruta directamente (no overlay)
   const rightFill = rightIsBase  ? resolveF(right)
-                  : rightIsFruit ? leftFill        // misma base en la mitad derecha
+                  : rightIsFruit ? right            // fruta en mitad derecha del anillo
                   : isPending    ? '#d8d8d8'
                   : leftFill;                      // null = círculo completo
 
@@ -2771,12 +2792,10 @@ function buildRollSVG(left, right, opts = {}) {
       <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftMeta.topFill}" clip-path="url(#atl)"/>`;
   }
 
-  // Fruta elegida: topping en el lado derecho (o círculo completo si no hay split)
-  if (rightIsFruit && !leftMeta?.noTopping) {
-    const cx2 = isSplit ? cx : cx - outerR;
-    const cw2 = isSplit ? outerR : outerR * 2;
+  // Fruta elegida sin split (círculo completo): topping en la mitad superior
+  if (rightIsFruit && !isSplit && !leftMeta?.noTopping) {
     toppingOverlay += `
-      <clipPath id="ftc"><rect x="${cx2}" y="${tTop}" width="${cw2}" height="${tH}"/></clipPath>
+      <clipPath id="ftc"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tH}"/></clipPath>
       <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${right}" clip-path="url(#ftc)"/>`;
   }
 

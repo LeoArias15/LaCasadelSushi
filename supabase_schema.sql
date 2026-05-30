@@ -361,5 +361,19 @@ select id, 'Agua Mineral', '600ml', 25.00, false, 2
 from public.categories where name = 'Bebidas' limit 1;
 
 -- ============================================================
+-- MIGRACIÓN — Vista previa personalizada por producto
+-- Ejecutar en: Supabase Dashboard → SQL Editor
+-- ============================================================
+alter table public.products
+  add column if not exists preview_config jsonb;
+-- Estructura esperada del JSON:
+-- {
+--   "outer":         "rice" | "nori" | "empanizado" | null  (null = auto-detectar del nombre)
+--   "right_base":    "california" | "empanizado" | "philadelphia" | null
+--   "topping_color": "#e03055" | null   (color hex del topping fijo)
+--   "topping_name":  "Fresa" | null
+-- }
+
+-- ============================================================
 -- FIN DEL SCHEMA
 -- ============================================================

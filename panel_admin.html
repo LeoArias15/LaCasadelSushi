@@ -762,6 +762,53 @@ body{
           <span style="font-size:11px;color:var(--text3);margin-top:2px">Cuántas puede seleccionar el cliente.</span>
         </div>
       </div>
+
+      <!-- ── VISTA PREVIA DEL ROLL ── -->
+      <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+          🍣 Vista previa del roll
+          <span style="font-size:11px;font-weight:400;color:var(--text3)">(opcional — si dejas en Auto se detecta del nombre)</span>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Exterior del roll</label>
+            <select id="pf-preview-outer">
+              <option value="">Auto (detectar del nombre)</option>
+              <option value="rice">Arroz blanco (por fuera)</option>
+              <option value="nori">Nori / alga (por fuera)</option>
+              <option value="empanizado">Empanizado (dorado)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Mitad derecha (split fijo)</label>
+            <select id="pf-preview-right">
+              <option value="">Auto / ninguno</option>
+              <option value="california">California</option>
+              <option value="empanizado">Empanizado</option>
+              <option value="philadelphia">Philadelphia</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color del topping fijo</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="color" id="pf-preview-color" value="#ffffff"
+                     style="width:42px;height:36px;padding:2px;border-radius:6px;border:1px solid var(--border2);cursor:pointer">
+              <input id="pf-preview-color-hex" placeholder="#e03055 (o vacío)"
+                     style="flex:1;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none"
+                     oninput="syncColorPicker(this.value)">
+            </div>
+            <span style="font-size:11px;color:var(--text3);margin-top:2px">Solo para rollos sin opciones de sabor</span>
+          </div>
+          <div class="form-group">
+            <label>Nombre del topping fijo</label>
+            <input id="pf-preview-name" placeholder="ej. Camarón, Salmón...">
+          </div>
+        </div>
+        <div id="pf-preview-demo" style="display:flex;align-items:center;gap:12px;margin-top:8px;padding:12px;background:var(--bg3);border-radius:var(--r)">
+          <div id="pf-preview-svg" style="flex-shrink:0"></div>
+          <span style="font-size:12px;color:var(--text3)">Vista previa en tiempo real</span>
+        </div>
+      </div>
       <div class="form-row">
         <button class="btn-secondary" onclick="closeProductModal()">Cancelar</button>
         <button class="btn-gold" style="flex:1" id="btn-save-product">Guardar producto</button>
@@ -1834,6 +1881,13 @@ function openProductForm(product=null) {
 
     document.getElementById('pf-available').value = String(product.available);
     document.getElementById('pf-featured').value = String(product.featured);
+    // Preview config
+    const pc = product.preview_config || {};
+    document.getElementById('pf-preview-outer').value   = pc.outer        || '';
+    document.getElementById('pf-preview-right').value   = pc.right_base   || '';
+    document.getElementById('pf-preview-color-hex').value = pc.topping_color || '';
+    document.getElementById('pf-preview-color').value   = pc.topping_color || '#ffffff';
+    document.getElementById('pf-preview-name').value    = pc.topping_name  || '';
     if (product.image_url) {
       document.getElementById('img-preview').src = product.image_url;
       document.getElementById('img-preview').style.display = 'block';
@@ -1842,7 +1896,11 @@ function openProductForm(product=null) {
   } else {
     document.getElementById('pf-title').textContent = 'Nuevo producto';
     document.getElementById('pf-id').value = '';
-    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options','pf-options-max'].forEach(id=>document.getElementById(id).value='');
+    ['pf-name','pf-desc','pf-price','pf-prep','pf-img-url','pf-order','pf-points','pf-options','pf-options-max',
+     'pf-preview-color-hex','pf-preview-name'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pf-preview-outer').value = '';
+    document.getElementById('pf-preview-right').value = '';
+    document.getElementById('pf-preview-color').value = '#ffffff';
     document.getElementById('pf-available').value = 'true';
     document.getElementById('pf-featured').value = 'false';
   }
@@ -1902,6 +1960,70 @@ document.getElementById('pf-img-url').addEventListener('input', (e) => {
 document.getElementById('btn-new-product').onclick = () => openProductForm();
 function editProduct(id) { openProductForm(state.products.find(p=>p.id===id)); }
 function closeProductModal() { document.getElementById('product-form-modal').classList.remove('open'); }
+
+function buildPreviewConfig() {
+  const outer = document.getElementById('pf-preview-outer').value || null;
+  const right = document.getElementById('pf-preview-right').value || null;
+  const color = (document.getElementById('pf-preview-color-hex').value || '').trim() || null;
+  const name  = document.getElementById('pf-preview-name').value.trim() || null;
+  if (!outer && !right && !color && !name) return null; // sin config = auto
+  return { outer, right_base: right, topping_color: color, topping_name: name };
+}
+
+function syncColorPicker(hex) {
+  if (/^#[0-9a-fA-F]{6}$/.test(hex))
+    document.getElementById('pf-preview-color').value = hex;
+}
+
+// Live preview dentro del formulario admin (mini SVG 80px)
+function updateAdminPreview() {
+  const outer = document.getElementById('pf-preview-outer').value;
+  const right = document.getElementById('pf-preview-right').value;
+  const color = document.getElementById('pf-preview-color-hex').value.trim();
+  const name  = document.getElementById('pf-preview-name').value.trim();
+  const container = document.getElementById('pf-preview-svg');
+  if (!container) return;
+  const leftVal  = outer || null;
+  const rightVal = right || (color || null);
+  const lbl = name ? `<span style="font-size:11px;color:#888">${name}</span>` : '';
+  // Mini SVG de 80px usando el mismo buildRollSVG del menú (no disponible aquí)
+  // Mostramos un simple bloque de color como indicador
+  const leftColor  = outerToColor(leftVal);
+  const rightColor = rightVal && rightVal.startsWith('#') ? rightVal : outerToColor(rightVal);
+  container.innerHTML = `
+    <svg viewBox="0 0 60 60" width="60" height="60" style="border-radius:50%;overflow:hidden;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.2))">
+      <clipPath id="apl"><rect x="0" y="0" width="30" height="60"/></clipPath>
+      <clipPath id="apr"><rect x="30" y="0" width="30" height="60"/></clipPath>
+      <circle cx="30" cy="30" r="30" fill="${leftColor}"/>
+      ${rightVal ? `<circle cx="30" cy="30" r="30" fill="${rightColor}" clip-path="url(#apr)"/>
+      <line x1="30" y1="0" x2="30" y2="60" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/>` : ''}
+      <circle cx="30" cy="30" r="12" fill="rgba(0,0,0,0.25)"/>
+    </svg>
+    ${lbl}`;
+}
+
+function outerToColor(val) {
+  if (!val) return '#f0f0e8';
+  if (val === 'nori' || val === 'california') return '#1e1e12';
+  if (val === 'empanizado') return '#c88218';
+  if (val === 'philadelphia') return '#f5f4e8';
+  if (val === 'rice') return '#f0f0e8';
+  if (val.startsWith('#')) return val;
+  return '#f0f0e8';
+}
+
+// Escuchar cambios en los campos de preview
+['pf-preview-outer','pf-preview-right','pf-preview-color','pf-preview-color-hex','pf-preview-name']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateAdminPreview);
+    if (el) el.addEventListener('change', updateAdminPreview);
+  });
+
+document.getElementById('pf-preview-color').addEventListener('input', e => {
+  document.getElementById('pf-preview-color-hex').value = e.target.value;
+  updateAdminPreview();
+});
 document.getElementById('product-form-modal').onclick = e => { if(e.target.id==='product-form-modal') closeProductModal(); };
 
 document.getElementById('btn-save-product').onclick = async () => {
@@ -1917,7 +2039,8 @@ document.getElementById('btn-save-product').onclick = async () => {
     sort_order: parseInt(document.getElementById('pf-order').value)||0,
     points: parseInt(document.getElementById('pf-points').value)||0,
     available: document.getElementById('pf-available').value==='true',
-    featured: document.getElementById('pf-featured').value==='true'
+    featured: document.getElementById('pf-featured').value==='true',
+    preview_config: buildPreviewConfig()
   };
   if (!data.name||!data.price) { showToast('Nombre y precio son requeridos'); return; }
   const btn = document.getElementById('btn-save-product');
