@@ -2606,167 +2606,227 @@ function getFlavorColor(name) {
   return FLAVOR_COLORS[name.toLowerCase()] || FLAVOR_COLORS[k] || '#888';
 }
 
-function buildIngredientSVG(flavor1, flavor2, isEmpanizado) {
-  const c1 = getFlavorColor(flavor1);
-  const c2 = flavor2 ? getFlavorColor(flavor2) : null;
+function getBaseType(productName) {
+  const n = (productName || '').toLowerCase();
+  if (/empaniz/i.test(n))    return 'empanizado';
+  if (/philadelphia/i.test(n)) return 'philadelphia';
+  if (/california/i.test(n)) return 'california';
+  return null;
+}
+
+// outerFill: ID del gradiente SVG para el anillo exterior de la base
+// chipColor: color del chip en la etiqueta
+const BASE_META = {
+  empanizado:   { outerFill: 'url(#g-empa)',    chipColor: '#c88218', label: 'Empanizado'   },
+  california:   { outerFill: 'url(#g-nori)',     chipColor: '#444',   label: 'California'   },
+  philadelphia: { outerFill: 'url(#g-philly)',  chipColor: '#999',    label: 'Philadelphia' },
+};
+
+function buildIngredientSVG(flavor1, flavor2, baseType) {
+  const baseMeta     = baseType ? BASE_META[baseType] : null;
+  const isEmpanizado = baseType === 'empanizado';
+  const isPhilly     = baseType === 'philadelphia';
+
+  // izq: fill del anillo exterior de la base; der: color de la fruta elegida
+  const leftFill   = baseMeta ? baseMeta.outerFill : getFlavorColor(flavor1);
+  const rightColor = flavor2 ? getFlavorColor(flavor2) : getFlavorColor(flavor1);
+  const isSplit    = !!(baseMeta || flavor2);
   const cx = 80, cy = 80, w = 160, h = 160;
-  const outerR  = 76;
-  const noriInR = 67;
-  const riceR   = 59;
-  const fillR   = 33;
-  const tTop    = cy - outerR;   // y donde empieza el topping (≈4)
-  const tHeight = 30;            // altura de la franja de topping
+  const outerR = 76;  // borde exterior del roll
+  const noriR  = 64;  // anillo de nori (DENTRO del arroz exterior)
+  const riceR  = 57;  // capa de arroz interior
+  const fillR  = 33;  // área del relleno
+  const tTop   = cy - outerR;  // = 4
+  const tH     = 44;           // altura del topping (más alto que antes)
 
-  // ── Gradientes y filtros ──
-  const empaDef = isEmpanizado ? `
-    <radialGradient id="g-empa" cx="50%" cy="30%" r="70%">
-      <stop offset="0%"   stop-color="#e09030"/>
-      <stop offset="100%" stop-color="#8a4d08"/>
-    </radialGradient>` : '';
-
+  // ── Gradientes ──
   const defs = `<defs>
-    ${empaDef}
+    <radialGradient id="g-empa" cx="50%" cy="28%" r="72%">
+      <stop offset="0%"   stop-color="#e89028"/>
+      <stop offset="100%" stop-color="#884808"/>
+    </radialGradient>
+    <radialGradient id="g-rice-out" cx="50%" cy="38%" r="62%">
+      <stop offset="0%"   stop-color="#f8f8ee"/>
+      <stop offset="100%" stop-color="#dedad0"/>
+    </radialGradient>
+    <radialGradient id="g-philly" cx="50%" cy="38%" r="62%">
+      <stop offset="0%"   stop-color="#fdfcf8"/>
+      <stop offset="100%" stop-color="#e8e6dc"/>
+    </radialGradient>
     <radialGradient id="g-nori" cx="50%" cy="35%" r="65%">
-      <stop offset="0%"   stop-color="#232318"/>
-      <stop offset="100%" stop-color="#0a0a05"/>
+      <stop offset="0%"   stop-color="#1e1e12"/>
+      <stop offset="100%" stop-color="#080806"/>
     </radialGradient>
-    <radialGradient id="g-rice" cx="45%" cy="40%" r="60%">
-      <stop offset="0%"   stop-color="#fafaf2"/>
-      <stop offset="100%" stop-color="#e8e6d4"/>
+    <radialGradient id="g-rice" cx="50%" cy="42%" r="58%">
+      <stop offset="0%"   stop-color="#f8f8ec"/>
+      <stop offset="100%" stop-color="#e4e0cc"/>
     </radialGradient>
-    <radialGradient id="g-cream" cx="40%" cy="35%" r="65%">
-      <stop offset="0%"   stop-color="#fffbf0"/>
-      <stop offset="100%" stop-color="#f0deb8"/>
+    <radialGradient id="g-cream" cx="42%" cy="38%" r="65%">
+      <stop offset="0%"   stop-color="#fffbf2"/>
+      <stop offset="100%" stop-color="#eedcb8"/>
     </radialGradient>
-    <radialGradient id="g-zan" cx="30%" cy="30%" r="70%">
-      <stop offset="0%"   stop-color="#f9a030"/>
-      <stop offset="100%" stop-color="#c85e08"/>
+    <radialGradient id="g-zan" cx="25%" cy="25%" r="75%">
+      <stop offset="0%"   stop-color="#f8a028"/>
+      <stop offset="100%" stop-color="#c05a08"/>
     </radialGradient>
-    <radialGradient id="g-agua" cx="35%" cy="30%" r="70%">
-      <stop offset="0%"   stop-color="#98e040"/>
-      <stop offset="100%" stop-color="#3a8018"/>
+    <radialGradient id="g-agua" cx="30%" cy="28%" r="72%">
+      <stop offset="0%"   stop-color="#90d838"/>
+      <stop offset="100%" stop-color="#387010"/>
     </radialGradient>
-    <radialGradient id="g-cam" cx="40%" cy="30%" r="70%">
-      <stop offset="0%"   stop-color="#fbb0a0"/>
-      <stop offset="100%" stop-color="#d85040"/>
+    <radialGradient id="g-cam" cx="38%" cy="28%" r="72%">
+      <stop offset="0%"   stop-color="#f8b0a0"/>
+      <stop offset="100%" stop-color="#d04838"/>
     </radialGradient>
-    <filter id="f-soft">
-      <feGaussianBlur stdDeviation="0.6"/>
-    </filter>
   </defs>`;
 
-  // ── Exterior: nori o empanizado ──
-  const outerFill = isEmpanizado ? 'url(#g-empa)' : 'url(#g-nori)';
-  const empaTexture = isEmpanizado ? `
-    <circle cx="${cx-22}" cy="${cy-58}" r="3"   fill="#d48820" opacity="0.55"/>
-    <circle cx="${cx+8}"  cy="${cy-64}" r="2.5" fill="#e8a030" opacity="0.45"/>
-    <circle cx="${cx+32}" cy="${cy-52}" r="2"   fill="#d48820" opacity="0.5"/>
-    <circle cx="${cx-40}" cy="${cy-38}" r="2.5" fill="#e8a030" opacity="0.4"/>
-    <circle cx="${cx+50}" cy="${cy-20}" r="2"   fill="#d48820" opacity="0.45"/>
-    <circle cx="${cx-52}" cy="${cy+15}" r="2"   fill="#e8a030" opacity="0.4"/>
-    <circle cx="${cx+42}" cy="${cy+38}" r="2.5" fill="#d48820" opacity="0.4"/>
-    <circle cx="${cx-30}" cy="${cy+55}" r="2"   fill="#e8a030" opacity="0.45"/>
-    <circle cx="${cx+12}" cy="${cy+60}" r="2.5" fill="#d48820" opacity="0.4"/>` : '';
+  // ── Anillo exterior: izq=base / der=fruta (o completo si 1 sabor) ──
+  let outerRing;
+  if (!isSplit) {
+    outerRing = `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"/>`;
+  } else {
+    outerRing = `
+      <clipPath id="ol"><rect x="0"    y="0" width="${cx}" height="${h}"/></clipPath>
+      <clipPath id="or"><rect x="${cx}" y="0" width="${cx}" height="${h}"/></clipPath>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${leftFill}"   clip-path="url(#ol)"/>
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${rightColor}" clip-path="url(#or)"/>
+      <line x1="${cx}" y1="${cy-outerR+1}" x2="${cx}" y2="${cy+outerR-1}"
+            stroke="rgba(255,255,255,0.72)" stroke-width="2.5"/>`;
+  }
 
-  // ── Topping de fruta — arco en parte superior ──
-  // Líneas de rebanadas dentro del arco
+  // ── Detalle de la base (textura empanizado / ajonjolí Philadelphia) ──
+  let baseDetail = '';
+  if (isEmpanizado) {
+    baseDetail = `
+      <clipPath id="etx"><rect x="0" y="0" width="${cx}" height="${h}"/></clipPath>
+      <g clip-path="url(#etx)">
+        <circle cx="${cx-20}" cy="${cy-60}" r="3"   fill="#fac040" opacity="0.5"/>
+        <circle cx="${cx+4}"  cy="${cy-66}" r="2.5" fill="#fac040" opacity="0.42"/>
+        <circle cx="${cx-38}" cy="${cy-42}" r="2.5" fill="#fac040" opacity="0.45"/>
+        <circle cx="${cx-54}" cy="${cy+12}" r="2"   fill="#fac040" opacity="0.38"/>
+        <circle cx="${cx-32}" cy="${cy+54}" r="2.5" fill="#fac040" opacity="0.42"/>
+        <circle cx="${cx-8}"  cy="${cy+62}" r="2"   fill="#fac040" opacity="0.38"/>
+        <circle cx="${cx-60}" cy="${cy-8}"  r="2"   fill="#fac040" opacity="0.35"/>
+      </g>`;
+  } else if (isPhilly) {
+    // Ajonjolí en la parte superior izquierda (la base philadelphia)
+    baseDetail = `
+      <clipPath id="ptx"><rect x="0" y="0" width="${cx}" height="${h}"/></clipPath>
+      <g clip-path="url(#ptx)">
+        <ellipse cx="${cx-18}" cy="${cy-72}" rx="2.8" ry="1.3" fill="#c8b868" opacity="0.88" transform="rotate(30,${cx-18},${cy-72})"/>
+        <ellipse cx="${cx-4}"  cy="${cy-74}" rx="2.8" ry="1.3" fill="#d4c070" opacity="0.82" transform="rotate(-15,${cx-4},${cy-74})"/>
+        <ellipse cx="${cx-30}" cy="${cy-66}" rx="2.5" ry="1.2" fill="#c8b868" opacity="0.78" transform="rotate(45,${cx-30},${cy-66})"/>
+        <ellipse cx="${cx-44}" cy="${cy-52}" rx="2.5" ry="1.2" fill="#d4c070" opacity="0.72" transform="rotate(20,${cx-44},${cy-52})"/>
+        <ellipse cx="${cx-12}" cy="${cy-70}" rx="2.6" ry="1.2" fill="#c8b868" opacity="0.80" transform="rotate(-30,${cx-12},${cy-70})"/>
+        <ellipse cx="${cx-56}" cy="${cy-26}" rx="2.2" ry="1.1" fill="#c8b868" opacity="0.65" transform="rotate(10,${cx-56},${cy-26})"/>
+      </g>`;
+  }
+
+  // ── Líneas de rebanadas y shimmer en el área del topping ──
   const slices = (xFrom, xTo) => {
     const step = (xTo - xFrom) / 5;
     let s = '';
     for (let i = 1; i < 5; i++) {
       const x = xFrom + step * i;
-      s += `<line x1="${x.toFixed(1)}" y1="${tTop+1}" x2="${x.toFixed(1)}" y2="${(tTop+tHeight-1).toFixed(1)}"
-                  stroke="rgba(255,255,255,0.28)" stroke-width="1.2"/>`;
+      s += `<line x1="${x.toFixed(1)}" y1="${tTop+2}" x2="${x.toFixed(1)}" y2="${tTop+tH-2}" stroke="rgba(255,255,255,0.30)" stroke-width="1.2"/>`;
     }
     return s;
   };
 
-  let topping;
-  if (!c2) {
-    topping = `
-      <clipPath id="tc"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tHeight}"/></clipPath>
-      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${c1}" clip-path="url(#tc)"/>
-      ${slices(cx - 60, cx + 60)}
-      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="rgba(255,255,255,0.10)" clip-path="url(#tc)"/>`;
+  let toppingLines;
+  if (!isSplit) {
+    toppingLines = `
+      <clipPath id="tc"><rect x="${cx-outerR}" y="${tTop}" width="${outerR*2}" height="${tH}"/></clipPath>
+      ${slices(cx-65, cx+65)}
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="rgba(255,255,255,0.09)" clip-path="url(#tc)"/>`;
   } else {
-    topping = `
-      <clipPath id="tl"><rect x="${cx-outerR}" y="${tTop}" width="${outerR}"   height="${tHeight}"/></clipPath>
-      <clipPath id="tr"><rect x="${cx}"        y="${tTop}" width="${outerR}"   height="${tHeight}"/></clipPath>
-      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${c1}" clip-path="url(#tl)"/>
-      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${c2}" clip-path="url(#tr)"/>
-      ${slices(cx - 60, cx)}
-      ${slices(cx, cx + 60)}
-      <line x1="${cx}" y1="${tTop}" x2="${cx}" y2="${tTop + tHeight}"
-            stroke="rgba(255,255,255,0.85)" stroke-width="2.5"/>`;
+    toppingLines = `
+      <clipPath id="tr"><rect x="${cx}" y="${tTop}" width="${outerR}" height="${tH}"/></clipPath>
+      ${slices(cx, cx+65)}
+      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="rgba(255,255,255,0.09)" clip-path="url(#tr)"/>`;
   }
 
-  // ── Granos de arroz en el anillo ──
+  // ── Granos de arroz en la capa exterior ──
   const grains = [
-    [cx-52,cy-24,  20],[cx-44,cy-38, -15],[cx-28,cy-52,  5],
-    [cx+2, cy-58,  30],[cx+24,cy-52, -10],[cx+46,cy-34,  18],
-    [cx+56,cy-8,   -5],[cx+56,cy+20, 25], [cx+46,cy+40,  -8],
-    [cx+24,cy+54,  12],[cx-2, cy+58, -20],[cx-28,cy+50,  8],
-    [cx-48,cy+36, -12],[cx-56,cy+10,  22],[cx-54,cy-14, -5],
+    [cx-54,cy-22, 18],[cx-46,cy-40,-14],[cx-26,cy-54,  6],
+    [cx+4, cy-60, 28],[cx+26,cy-54,-10],[cx+48,cy-36, 16],
+    [cx+58,cy-8,  -4],[cx+58,cy+22, 24],[cx+48,cy+42, -8],
+    [cx+26,cy+56, 10],[cx-2, cy+60,-18],[cx-30,cy+52,  7],
+    [cx-50,cy+38,-11],[cx-58,cy+8,  20],[cx-56,cy-16, -4],
   ].map(([gx,gy,rot]) =>
-    `<ellipse cx="${gx}" cy="${gy}" rx="3.5" ry="1.4" fill="#ccc8a8" opacity="0.55"
-              transform="rotate(${rot},${gx},${gy})"/>`
+    `<ellipse cx="${gx}" cy="${gy}" rx="3.2" ry="1.3" fill="#c4c0a0" opacity="0.45" transform="rotate(${rot},${gx},${gy})"/>`
   ).join('');
 
-  // ── Relleno — sección transversal detallada ──
+  // ── Relleno: formas orgánicas de cada ingrediente ──
   const filling = `
     <circle cx="${cx}" cy="${cy}" r="${fillR}" fill="url(#g-cream)"/>
 
-    <!-- Zanahoria — tira oblonga arriba con textura -->
-    <ellipse cx="${cx+1}" cy="${cy-18}" rx="13" ry="5.5"
-             fill="url(#g-zan)" transform="rotate(-6,${cx+1},${cy-18})"/>
-    <ellipse cx="${cx+1}" cy="${cy-18}" rx="10" ry="3.5"
-             fill="#ffc060" opacity="0.35" transform="rotate(-6,${cx+1},${cy-18})"/>
-    <line x1="${cx-8}" y1="${cy-17}" x2="${cx+10}" y2="${cy-19}"
-          stroke="#e07010" stroke-width="1" opacity="0.4"/>
+    <!-- Zanahoria: pieza de corte transversal con forma orgánica -->
+    <path d="M ${cx-12} ${cy-13}
+             C ${cx-8}  ${cy-23} ${cx+8}  ${cy-23} ${cx+12} ${cy-13}
+             C ${cx+10} ${cy-9}  ${cx-10} ${cy-9}  ${cx-12} ${cy-13} Z"
+          fill="url(#g-zan)"/>
+    <path d="M ${cx-7} ${cy-15} C ${cx-2} ${cy-20} ${cx+4} ${cy-18} ${cx+8} ${cy-14}"
+          fill="none" stroke="#f0a840" stroke-width="1.1" opacity="0.45"/>
+    <path d="M ${cx-3} ${cy-11} C ${cx+1} ${cy-15} ${cx+5} ${cy-13} ${cx+7} ${cy-11}"
+          fill="none" stroke="#f0a840" stroke-width="0.8" opacity="0.32"/>
 
-    <!-- Pepino — sección transversal 4 anillos -->
-    <circle cx="${cx+19}" cy="${cy+6}"  r="9"   fill="#2e8818"/>
-    <circle cx="${cx+19}" cy="${cy+6}"  r="6.5" fill="#b8ec80"/>
-    <circle cx="${cx+19}" cy="${cy+6}"  r="4"   fill="#dff8b0"/>
-    <circle cx="${cx+19}" cy="${cy+6}"  r="2"   fill="#f4fde8" opacity="0.9"/>
-    <!-- semillas del pepino -->
-    <circle cx="${cx+17}" cy="${cy+4}"  r="0.9" fill="#90c840" opacity="0.7"/>
-    <circle cx="${cx+21}" cy="${cy+5}"  r="0.9" fill="#90c840" opacity="0.7"/>
-    <circle cx="${cx+19}" cy="${cy+8}"  r="0.9" fill="#90c840" opacity="0.7"/>
+    <!-- Pepino: sección transversal con 4 anillos y 3 semillas -->
+    <circle cx="${cx+18}" cy="${cy+7}"  r="9.5" fill="#247012"/>
+    <circle cx="${cx+18}" cy="${cy+7}"  r="7"   fill="#9cd848"/>
+    <circle cx="${cx+18}" cy="${cy+7}"  r="4.5" fill="#d2f298"/>
+    <circle cx="${cx+18}" cy="${cy+7}"  r="2.2" fill="#eefce2"/>
+    <circle cx="${cx+16}" cy="${cy+5}"  r="1"   fill="#68a828" opacity="0.82"/>
+    <circle cx="${cx+20}" cy="${cy+6}"  r="1"   fill="#68a828" opacity="0.82"/>
+    <circle cx="${cx+18}" cy="${cy+10}" r="1"   fill="#68a828" opacity="0.82"/>
 
-    <!-- Camarón — forma arqueada -->
-    <path d="M ${cx-14} ${cy+15}
-             Q ${cx}    ${cy+24} ${cx+14} ${cy+15}
-             Q ${cx+11} ${cy+28} ${cx}    ${cy+29}
-             Q ${cx-11} ${cy+28} ${cx-14} ${cy+15} Z"
+    <!-- Camarón: pieza curvada natural -->
+    <path d="M ${cx-13} ${cy+12}
+             C ${cx-17} ${cy+21} ${cx-8}  ${cy+28} ${cx}    ${cy+28}
+             C ${cx+8}  ${cy+28} ${cx+17} ${cy+21} ${cx+13} ${cy+12}
+             C ${cx+9}  ${cy+16} ${cx}    ${cy+18} ${cx}    ${cy+18}
+             C ${cx-8}  ${cy+17} ${cx-9}  ${cy+15} ${cx-13} ${cy+12} Z"
           fill="url(#g-cam)"/>
-    <path d="M ${cx-9} ${cy+17} Q ${cx} ${cy+23} ${cx+9} ${cy+17}"
-          fill="none" stroke="#ffcfc0" stroke-width="1.8" opacity="0.6"/>
-    <path d="M ${cx-5} ${cy+21} Q ${cx} ${cy+26} ${cx+5} ${cy+21}"
-          fill="none" stroke="#ffcfc0" stroke-width="1.2" opacity="0.4"/>
+    <path d="M ${cx-8} ${cy+14} C ${cx} ${cy+20} ${cx+8} ${cy+14}"
+          fill="none" stroke="#ffd8c8" stroke-width="1.6" opacity="0.55"/>
+    <path d="M ${cx-4} ${cy+19} C ${cx} ${cy+23} ${cx+4} ${cy+19}"
+          fill="none" stroke="#ffd8c8" stroke-width="1" opacity="0.38"/>
 
-    <!-- Aguacate — media luna izquierda -->
-    <ellipse cx="${cx-18}" cy="${cy-1}" rx="6.5" ry="13" fill="url(#g-agua)"/>
-    <ellipse cx="${cx-18}" cy="${cy-1}" rx="4"   ry="9"   fill="#c0f060" opacity="0.35"/>
-    <ellipse cx="${cx-17}" cy="${cy-3}" rx="2"   ry="5"   fill="#e8ffa0" opacity="0.3"/>
+    <!-- Aguacate: cuña verde con borde orgánico -->
+    <path d="M ${cx-12} ${cy-14}
+             C ${cx-24} ${cy-5} ${cx-26} ${cy+10} ${cx-17} ${cy+20}
+             C ${cx-12} ${cy+24} ${cx-7}  ${cy+20} ${cx-9}  ${cy+10}
+             C ${cx-11} ${cy+1}  ${cx-9}  ${cy-6}  ${cx-12} ${cy-14} Z"
+          fill="url(#g-agua)"/>
+    <path d="M ${cx-14} ${cy-4} C ${cx-20} ${cy+8} ${cx-18} ${cy+16} ${cx-11} ${cy+18}"
+          fill="none" stroke="#b0e050" stroke-width="1.2" opacity="0.38"/>
 
-    <!-- Queso crema — brillo central -->
-    <circle cx="${cx+3}"  cy="${cy-3}" r="7"   fill="#fffcf4" opacity="0.88"/>
-    <circle cx="${cx+2}"  cy="${cy-4}" r="3.5" fill="#fff"    opacity="0.55"/>`;
+    <!-- Queso crema: zona brillante central -->
+    <circle cx="${cx+4}"  cy="${cy-4}" r="9"   fill="#fffdf5" opacity="0.80"/>
+    <circle cx="${cx+3}"  cy="${cy-5}" r="5.5" fill="#ffffff"  opacity="0.50"/>
+    <circle cx="${cx+2}"  cy="${cy-6}" r="2.5" fill="#ffffff"  opacity="0.35"/>`;
 
-  const chips = [flavor1, flavor2].filter(Boolean).map(f =>
-    `<span class="sushi-flavor-chip" style="background:${getFlavorColor(f)}">${f}</span>`
-  ).join('<span style="color:var(--ink-muted);margin:0 2px">+</span>');
-  const label = c2 ? `Mitad ${chips}` : `Completo ${chips}`;
+  // ── Label ──
+  let label;
+  if (baseMeta) {
+    const fc = `<span class="sushi-flavor-chip" style="background:${rightColor}">${flavor1}</span>`;
+    const bc = `<span class="sushi-flavor-chip" style="background:${baseMeta.chipColor}">${baseMeta.label}</span>`;
+    label = `${bc} <span style="color:var(--ink-muted)">+</span> ${fc}`;
+  } else if (flavor2) {
+    const ch1 = `<span class="sushi-flavor-chip" style="background:${getFlavorColor(flavor1)}">${flavor1}</span>`;
+    const ch2 = `<span class="sushi-flavor-chip" style="background:${rightColor}">${flavor2}</span>`;
+    label = `Mitad ${ch1} <span style="color:var(--ink-muted)">+</span> ${ch2}`;
+  } else {
+    label = `Completo <span class="sushi-flavor-chip" style="background:${rightColor}">${flavor1}</span>`;
+  }
 
   return `
     <svg viewBox="0 0 ${w} ${h}" width="170" height="170"
-         style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.30))">
+         style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.28))">
       ${defs}
-      <circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${outerFill}"/>
-      ${empaTexture}
-      ${topping}
-      <circle cx="${cx}" cy="${cy}" r="${noriInR}" fill="${isEmpanizado ? '#2a1805' : 'url(#g-nori)'}"/>
+      ${outerRing}
+      ${baseDetail}
+      ${toppingLines}
+      <circle cx="${cx}" cy="${cy}" r="${noriR}"  fill="url(#g-nori)"/>
       <circle cx="${cx}" cy="${cy}" r="${riceR}"   fill="url(#g-rice)"/>
       ${grains}
       ${filling}
@@ -2780,8 +2840,8 @@ function renderSushiPreview() {
   const sel = state.selectedOptions || [];
   if (!sel.length) { el.innerHTML = ''; return; }
 
-  const isEmpanizado = /empaniz/i.test(state.currentProduct?.name || '');
-  const previewHTML = buildIngredientSVG(sel[0], sel[1], isEmpanizado);
+  const baseType = getBaseType(state.currentProduct?.name);
+  const previewHTML = buildIngredientSVG(sel[0], sel[1], baseType);
 
   el.innerHTML = `<div class="sushi-preview-wrap">${previewHTML}</div>`;
 }
