@@ -1269,7 +1269,7 @@ async function loadOrders() {
   const toVal = document.getElementById('filter-date-to')?.value;
   const since = fromVal ? new Date(fromVal).toISOString() : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const until = toVal ? new Date(toVal + 'T23:59:59').toISOString() : new Date().toISOString();
-  const { data } = await sb.from('orders')
+  const { data } = await sbAdmin.from('orders')
     .select('*,order_items(id,product_name,product_price,quantity,notes,subtotal)')
     .gte('created_at', since)
     .lte('created_at', until)
@@ -1956,7 +1956,7 @@ async function loadReport() {
   const fromDt = new Date(from + 'T00:00:00').toISOString();
   const toDt   = new Date(to   + 'T23:59:59').toISOString();
 
-  const { data } = await sb.from('orders')
+  const { data } = await sbAdmin.from('orders')
     .select('*,order_items(*)')
     .gte('created_at', fromDt)
     .lte('created_at', toDt)
@@ -2519,7 +2519,7 @@ async function openClientModal(clientId) {
   else { callBtn.style.display='none'; }
 
   // Load order history
-  const { data: orders } = await sb.from('orders').select('order_number,total,status,created_at')
+  const { data: orders } = await sbAdmin.from('orders').select('order_number,total,status,created_at')
     .eq('user_id', c.id).order('created_at',{ascending:false}).limit(10);
 
   const histEl = document.getElementById('cm-orders-list');
