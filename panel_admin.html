@@ -1115,21 +1115,30 @@ let state = {
 
 // ── AUTH ──
 async function initAuth() {
+  // 1. Revisar si hay sesión guardada en localStorage sin llamada de red
   try {
-    const { data, error } = await sb.auth.getSession();
-    if (error) throw error;
-    const session = data?.session;
-    if (session && session.user.app_metadata?.role === 'admin') {
-      showApp();
-    } else if (session) {
-      await sb.auth.signOut(); // sesión sin rol admin
+    const raw = Object.entries(localStorage).find(([k]) => k.includes('auth-token'))?.[1];
+    if (raw) {
+      const stored = JSON.parse(raw);
+      const user = stored?.user || stored?.currentSession?.user;
+      if (user?.app_metadata?.role === 'admin') {
+        showApp(); // mostrar de inmediato, el token se refresca en background
+        sb.auth.getSession().catch(() => {}); // refresh silencioso
+        return;
+      }
     }
-    // Si no hay sesión → muestra pantalla de login (ya está visible por defecto)
+  } catch(e) {}
+
+  // 2. Sin sesión local — intentar getSession normal
+  try {
+    const { data } = await sb.auth.getSession();
+    const session = data?.session;
+    if (session?.user?.app_metadata?.role === 'admin') {
+      showApp();
+    }
+    // Si hay sesión sin rol admin no hacemos signOut — puede ser cliente del menú
   } catch (e) {
     console.error('initAuth error:', e);
-    // Mostrar login de todas formas; el error puede ser de red
-    document.getElementById('login-error').textContent = 'Error de conexión, intenta de nuevo';
-    document.getElementById('login-error').classList.add('v');
   }
 }
 
@@ -1186,7 +1195,7 @@ document.getElementById('btn-logout').onclick = async () => {
 
 // ── INIT ──
 async function initApp() {
-  setDateFilter(7);
+  setDateFilter(30); // mostrar último mes por defecto
   startClock(); setupNav(); setToday();
   setupRealtime();
 
@@ -1334,13 +1343,20 @@ function setupRealtime() {
     )
     .subscribe();
 
-  // Fallback polling — solo por si Realtime falla. Realtime ya cubre pedidos en tiempo real.
-  setInterval(async () => {
-    await loadOrders();
-    renderOrders();
-    renderDashboard();
-    updateNewOrdersBadge();
-  }, 60000);
+  // Sin polling — Realtime cubre pedidos en tiempo real.
+  // Recarga solo cuando el usuario vuelve a la pestaña después de 2+ minutos inactivo.
+  let _lastVisible = Date.now();
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      const away = Date.now() - _lastVisible;
+      if (away > 120000) { // más de 2 minutos fuera
+        await loadOrders();
+        renderOrders(); renderDashboard(); updateNewOrdersBadge();
+      }
+    } else {
+      _lastVisible = Date.now();
+    }
+  });
 }
 
 function showNewOrderAlert() {
