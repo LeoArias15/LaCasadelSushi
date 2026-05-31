@@ -1282,7 +1282,6 @@ let _realtimeReady = false;
 function setupRealtime() {
   if (_realtimeReady) return;   // evitar doble suscripción
   _realtimeReady = true;
-  sb.removeAllChannels();       // limpiar canales huérfanos de sesiones anteriores
 
   // Orders realtime
   sb.channel('admin-orders')
