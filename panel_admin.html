@@ -1102,8 +1102,8 @@ body{
 <div class="new-order-alert" id="new-order-alert">Nuevo pedido recibido</div>
 
 <script>
-const SUPABASE_URL = 'https://ewwwgnbdzljinsmsaedm.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3d3dnbmJkemxqaW5zbXNhZWRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MzQ0MDMsImV4cCI6MjA5MjIxMDQwM30.cPJCrIW4v32J_6B71l2vSAFYeVl4t4TINhjQRhVWP0k';
+const SUPABASE_URL = 'http://167.235.154.133:8000';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgwMjAxMzcxLCJleHAiOjIwOTU1NjEzNzF9.hwsC375tv9G92mJZvxJLTiZg_zfgK66vaizs2NEHoSw';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1188,10 +1188,18 @@ document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key===
 document.getElementById('btn-logout').onclick = async () => {
   await sb.auth.signOut();
   sb.removeAllChannels();
-  _realtimeReady = false;   // permitir re-suscripción si vuelve a iniciar sesión
+  _realtimeReady = false;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 };
+
+// Detecta expiración de sesión automáticamente
+sb.auth.onAuthStateChange((event, session) => {
+  const appVisible = document.getElementById('app').style.display === 'flex';
+  if (appVisible && (event === 'SIGNED_OUT' || (!session && event !== 'INITIAL_SESSION'))) {
+    forceLogout();
+  }
+});
 
 // ── INIT ──
 async function initApp() {
@@ -1269,26 +1277,46 @@ async function loadOrders() {
   const label = document.getElementById('orders-count-label');
   if (label) label.textContent = `${state.orders.length} pedido${state.orders.length!==1?'s':''}`;
 }
+// Detecta errores de autenticación y fuerza re-login
+function handleLoadError(label, error) {
+  console.error(label, error);
+  if (error?.message?.includes('JWT') || error?.code === 'PGRST301' ||
+      error?.status === 401 || error?.message?.includes('expired')) {
+    console.warn('Sesión expirada — redirigiendo a login');
+    forceLogout();
+  }
+}
+
+function forceLogout() {
+  sb.auth.signOut().catch(()=>{});
+  _realtimeReady = false;
+  sb.removeAllChannels();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').textContent = 'Tu sesión expiró. Inicia sesión de nuevo.';
+  document.getElementById('login-error').classList.add('v');
+}
+
 async function loadProducts() {
   try {
     const { data, error } = await sb.from('products').select('*,categories(name,emoji)').order('sort_order');
     if (error) throw error;
     state.products = data || [];
-  } catch(e) { console.error('loadProducts:', e); }
+  } catch(e) { handleLoadError('loadProducts:', e); }
 }
 async function loadCategories() {
   try {
     const { data, error } = await sb.from('categories').select('*').order('sort_order');
     if (error) throw error;
     state.categories = data || [];
-  } catch(e) { console.error('loadCategories:', e); }
+  } catch(e) { handleLoadError('loadCategories:', e); }
 }
 async function loadSettings() {
   try {
     const { data, error } = await sb.from('settings').select('*').single();
     if (error) throw error;
     state.settings = data; updateStatusBar();
-  } catch(e) { console.error('loadSettings:', e); }
+  } catch(e) { handleLoadError('loadSettings:', e); }
 }
 async function loadClients() {
   const { data } = await sb.from('profiles').select('*').order('orders_count',{ascending:false});
