@@ -1178,35 +1178,50 @@ async function initApp() {
   setDateFilter(7);
   startClock(); setupNav(); setToday();
 
-  // Mostrar spinner de carga
-  const appEl = document.getElementById('app');
   const loadBanner = document.createElement('div');
   loadBanner.id = 'app-loading-banner';
   loadBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--gold);color:#000;font-size:13px;font-weight:600;text-align:center;padding:8px;letter-spacing:0.03em';
-  loadBanner.textContent = 'Cargando datos…';
+  loadBanner.textContent = 'Cargando configuración…';
   document.body.appendChild(loadBanner);
 
+  // ── FASE 1: datos rápidos (productos, categorías, settings) ──
+  // Timeout generoso de 20s solo para estos
   try {
-    // Timeout de 15 segundos para la carga inicial
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Tiempo de espera agotado')), 15000)
-    );
+    const t1 = new Promise((_, r) => setTimeout(() => r(new Error('Timeout config')), 20000));
     await Promise.race([
-      Promise.all([loadOrders(), loadProducts(), loadCategories(), loadSettings()]),
-      timeout
+      Promise.all([loadProducts(), loadCategories(), loadSettings()]),
+      t1
     ]);
-    loadBanner.remove();
   } catch (e) {
-    console.error('initApp load error:', e);
+    console.error('Phase 1 load error:', e);
     loadBanner.style.background = '#c0392b';
     loadBanner.style.color = '#fff';
-    loadBanner.innerHTML = `Error al cargar: ${e.message}. <button onclick="location.reload()" style="margin-left:12px;background:#fff;color:#c0392b;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reintentar</button>`;
-    // Intentar renderizar lo que haya cargado
+    loadBanner.innerHTML = `Error de conexión: ${e.message}. <button onclick="location.reload()" style="margin-left:12px;background:#fff;color:#c0392b;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reintentar</button>`;
   }
 
+  // Renderizar UI inmediatamente con lo que hay — el panel ya es usable
+  loadBanner.remove();
   setupRealtime();
-  renderOrders(); renderDashboard(); updateStatusToggles();
+  updateStatusToggles();
   renderProducts(); renderCategories();
+
+  // ── FASE 2: pedidos en segundo plano (son muchos y tardan más) ──
+  const ordersSpinner = document.createElement('div');
+  ordersSpinner.id = 'orders-loading-bar';
+  ordersSpinner.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9998;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;color:var(--text2);box-shadow:0 2px 12px rgba(0,0,0,0.15)';
+  ordersSpinner.textContent = '⏳ Cargando pedidos…';
+  document.body.appendChild(ordersSpinner);
+
+  try {
+    await loadOrders();
+    ordersSpinner.remove();
+  } catch (e) {
+    console.error('Orders load error:', e);
+    ordersSpinner.textContent = '⚠ Error cargando pedidos';
+    setTimeout(() => ordersSpinner.remove(), 4000);
+  }
+
+  renderOrders(); renderDashboard(); updateNewOrdersBadge();
 }
 
 setInterval(updateStatusBar, 60000);
