@@ -1274,9 +1274,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5v
 const WHATSAPP_NUMBER = '523323286466'; // formato internacional sin +
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  realtime: { params: { eventsPerSecond: -1 } }
-});
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ═══════════════════════════════════════════════
 // STATE
@@ -1329,50 +1327,8 @@ async function init() {
 
 
 
-  // Realtime: settings update
-  sb.channel('settings').on('postgres_changes',{event:'UPDATE',schema:'public',table:'settings'},
-    (payload) => { state.settings = payload.new; renderStatus(); renderPaymentOptions(); updateWhatsAppLinks(); }
-  ).subscribe();
-
-  // Realtime: products availability
-  sb.channel('products').on('postgres_changes',{event:'UPDATE',schema:'public',table:'products'},
-    (payload) => {
-      const idx = state.products.findIndex(p => p.id === payload.new.id);
-      if (idx !== -1) { state.products[idx] = payload.new; renderMenu(); }
-    }
-  ).subscribe();
-
-  // Realtime: profile points update (when order is delivered and trigger fires)
-  if (state.user) {
-    sb.channel('profile-points')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${state.user.id}`
-      }, (payload) => {
-        if (state.profile) {
-          state.profile.points_total = payload.new.points_total;
-          state.profile.discount_active = payload.new.discount_active;
-          state.profile.orders_count = payload.new.orders_count;
-        }
-        renderLoyalty();
-        updateRewardsButton();
-      })
-      .subscribe();
-
-    // Realtime: order status changes for this user
-    sb.channel('user-orders')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'orders',
-        filter: `user_id=eq.${state.user.id}`
-      }, () => {
-        loadOrderHistory();
-      })
-      .subscribe();
-  }
+  // Realtime deshabilitado — Vercel proxy no soporta WebSocket
+  // Los datos se recargan al volver a la pestaña o al hacer una acción
 }
 
 async function loadSettings() {
