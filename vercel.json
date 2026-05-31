@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/supabase/:path*", "destination": "http://167.235.154.133:8000/:path*" },
     { "source": "/", "destination": "/menu_cliente.html" },
     { "source": "/admin", "destination": "/panel_admin.html" }
   ]
