@@ -1179,39 +1179,40 @@ document.getElementById('btn-logout').onclick = async () => {
 async function initApp() {
   setDateFilter(7);
   startClock(); setupNav(); setToday();
-
-  // Mostrar el panel inmediatamente con estado vacío — sin bloquear
   setupRealtime();
-  renderOrders(); renderDashboard(); updateStatusToggles();
-  renderProducts(); renderCategories();
 
-  // Indicador flotante de carga (no bloquea la UI)
+  // Pill de carga — no bloquea la UI
   const pill = document.createElement('div');
   pill.id = 'load-pill';
   pill.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9998;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--text2);box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px;transition:opacity .4s';
-  pill.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 1.2s infinite"></span> Sincronizando con Supabase…';
+  pill.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 1.2s infinite"></span> Cargando…';
   document.body.appendChild(pill);
 
   const hidePill = () => { pill.style.opacity='0'; setTimeout(()=>pill.remove(),400); };
-  const errPill  = (msg) => {
-    pill.innerHTML = `⚠ ${msg} <button onclick="location.reload()" style="margin-left:8px;background:var(--red);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">Reintentar</button>`;
-    pill.style.borderColor = 'var(--red)';
-  };
 
-  // Cargar TODO en paralelo sin timeout — Supabase puede tardar en el primer
-  // handshake HTTP (TLS + connection pool), pero siempre responde.
-  try {
-    await Promise.all([
-      loadProducts().then(() => renderProducts()),
-      loadCategories().then(() => renderCategories()),
-      loadSettings().then(() => { updateStatusToggles(); updateStatusBar(); }),
-      loadOrders().then(() => { renderOrders(); renderDashboard(); updateNewOrdersBadge(); }),
-    ]);
-    hidePill();
-  } catch (e) {
-    console.error('initApp load error:', e);
-    errPill('Error al cargar datos');
-  }
+  // Timeout de 30s por llamada — nunca bloquea indefinidamente
+  const t = p => Promise.race([p, new Promise(res => setTimeout(res, 30000))]);
+
+  // Advertencia a los 20s
+  const warnTimer = setTimeout(() => {
+    if (document.getElementById('load-pill'))
+      pill.innerHTML = `⏳ Tarda más de lo usual… <button onclick="location.reload()" style="margin-left:8px;background:var(--gold);color:#000;border:none;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer">Reintentar</button>`;
+  }, 20000);
+
+  // Cargar TODO en paralelo, renderizar UNA VEZ cuando todo esté listo
+  await Promise.all([
+    t(loadProducts()),
+    t(loadCategories()),
+    t(loadSettings()),
+    t(loadOrders()),
+  ]);
+
+  clearTimeout(warnTimer);
+  hidePill();
+
+  // Renderizar con datos completos
+  renderOrders(); renderDashboard(); updateStatusToggles(); updateStatusBar();
+  renderProducts(); renderCategories(); updateNewOrdersBadge();
 }
 
 setInterval(updateStatusBar, 60000);
