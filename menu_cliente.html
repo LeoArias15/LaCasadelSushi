@@ -764,6 +764,21 @@ body{
 /* ── POINTS BADGE ── */
 .pts-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--gold-light);color:var(--gold);font-weight:500;border:1px solid rgba(184,150,46,0.25);white-space:nowrap;}
 
+/* ── IMAGE CAROUSEL ── */
+.img-carousel{position:relative;width:100%;height:100%;overflow:hidden;}
+.carousel-slide{position:absolute;inset:0;opacity:0;transition:opacity 0.6s ease;width:100%;height:100%;object-fit:cover;}
+.carousel-slide.active{opacity:1;}
+.carousel-dots{
+  position:absolute;bottom:5px;left:50%;transform:translateX(-50%);
+  display:flex;gap:4px;z-index:2;
+}
+.carousel-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:rgba(255,255,255,0.5);
+  transition:background 0.3s;
+}
+.carousel-dot.active{background:#fff;}
+
 /* ── OPTION BUTTONS ── */
 .option-btn{padding:8px 14px;border-radius:20px;border:1.5px solid var(--border-strong);background:transparent;font-family:var(--ff-body);font-size:13px;cursor:pointer;transition:all 0.2s;color:var(--ink);}
 .option-btn.selected{background:var(--ink);color:#fff;border-color:var(--ink);}
@@ -1538,6 +1553,44 @@ function renderMenu() {
   });
 }
 
+function buildCarousel(images, altText, showDots) {
+  // images: array of URLs, all valid
+  if (!images || images.length === 0) return null;
+  if (images.length === 1) {
+    return `<img src="${images[0]}" alt="${altText}" loading="lazy" style="width:100%;height:100%;object-fit:cover">`;
+  }
+  const slides = images.map((src, i) =>
+    `<img class="carousel-slide${i===0?' active':''}" src="${src}" alt="${altText}" loading="lazy">`
+  ).join('');
+  const dots = showDots
+    ? `<div class="carousel-dots">${images.map((_,i) =>
+        `<div class="carousel-dot${i===0?' active':''}"></div>`).join('')}</div>`
+    : '';
+  return `<div class="img-carousel">${slides}${dots}</div>`;
+}
+
+// Initializes auto-rotate on all .img-carousel elements in a container
+function initCarousels(container) {
+  container.querySelectorAll('.img-carousel').forEach(el => {
+    if (el._carouselInit) return; // already initialized
+    el._carouselInit = true;
+    const slides = el.querySelectorAll('.carousel-slide');
+    const dots   = el.querySelectorAll('.carousel-dot');
+    if (slides.length <= 1) return;
+    let cur = 0;
+    function next() {
+      slides[cur].classList.remove('active');
+      dots[cur]?.classList.remove('active');
+      cur = (cur + 1) % slides.length;
+      slides[cur].classList.add('active');
+      dots[cur]?.classList.add('active');
+    }
+    let timer = setInterval(next, 2500);
+    el.addEventListener('mouseenter', () => clearInterval(timer));
+    el.addEventListener('mouseleave', () => { timer = setInterval(next, 2500); });
+  });
+}
+
 function createProductCard(p) {
   const card = document.createElement('div');
   card.className = 'product-card' + (!p.available ? ' unavailable' : '');
@@ -1546,9 +1599,9 @@ function createProductCard(p) {
   const cartItem = state.cart.find(c => c.id === p.id);
   const qty = cartItem?.quantity || 0;
 
-  const imgContent = p.image_url
-    ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">`
-    : getCategoryEmoji(p);
+  const allImages = [p.image_url, ...(Array.isArray(p.images) ? p.images : [])].filter(Boolean);
+  const carouselHtml = buildCarousel(allImages, p.name, false); // no dots on small card
+  const imgContent = carouselHtml || getCategoryEmoji(p);
 
   card.innerHTML = `
     ${p.featured ? '<div class="featured-star" title="Popular">★</div>' : ''}
@@ -1578,6 +1631,8 @@ function createProductCard(p) {
       </div>
     </div>
   `;
+
+  initCarousels(card);
 
   if (p.available) {
     card.querySelector('.product-top').addEventListener('click', () => openProductModal(p.id));
@@ -1766,11 +1821,14 @@ function openProductModal(productId) {
   state.currentProduct = p;
   state.pmQty = 1;
 
-  const imgContent = p.image_url
-    ? `<img src="${p.image_url}" alt="${p.name}">`
-    : p.categories?.emoji ? `<span style="font-size:64px">${p.categories.emoji}</span>` : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:80px;height:80px;opacity:.3"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`;
+  const allImages = [p.image_url, ...(Array.isArray(p.images) ? p.images : [])].filter(Boolean);
+  const carouselHtml = buildCarousel(allImages, p.name, true); // with dots in modal
+  const imgContent = carouselHtml
+    || (p.categories?.emoji ? `<span style="font-size:64px">${p.categories.emoji}</span>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:80px;height:80px;opacity:.3"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>`);
 
   document.getElementById('pm-img').innerHTML = imgContent;
+  initCarousels(document.getElementById('pm-img'));
   document.getElementById('pm-name').textContent = p.name;
   document.getElementById('pm-desc').textContent = p.description || '';
   document.getElementById('pm-price').textContent = '$' + p.price.toFixed(0) + ' MXN';

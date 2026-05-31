@@ -715,6 +715,15 @@ body{
           <input id="pf-img-url" placeholder="O pega una URL de imagen aquí" style="margin-top:8px;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:13px;outline:none;width:100%">
         </div>
         <div class="form-group span2">
+          <label>Imágenes adicionales (carrusel)</label>
+          <div id="pf-extra-images" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+          <button type="button" onclick="addExtraImgRow('')"
+                  style="background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:12px;padding:7px 14px;cursor:pointer;width:100%">
+            + Agregar imagen al carrusel
+          </button>
+          <span style="font-size:11px;color:var(--text3);margin-top:4px">La primera imagen del producto sigue siendo la principal. Estas se rotan en carrusel.</span>
+        </div>
+        <div class="form-group span2">
           <label>Nombre del producto</label>
           <input id="pf-name" placeholder="Dragon Roll">
         </div>
@@ -1241,11 +1250,11 @@ async function loadOrders() {
   const since = fromVal ? new Date(fromVal).toISOString() : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const until = toVal ? new Date(toVal + 'T23:59:59').toISOString() : new Date().toISOString();
   const { data } = await sb.from('orders')
-    .select('*,order_items(id,product_name,product_price,quantity,notes,subtotal),profiles(name,phone)')
+    .select('*,order_items(id,product_name,product_price,quantity,notes,subtotal)')
     .gte('created_at', since)
     .lte('created_at', until)
     .order('created_at',{ascending:false})
-    .limit(500);
+    .limit(200);
   state.orders = data || [];
   updateNewOrdersBadge();
   const label = document.getElementById('orders-count-label');
@@ -1325,13 +1334,13 @@ function setupRealtime() {
     )
     .subscribe();
 
-  // Fallback: refresh orders every 10 seconds
+  // Fallback polling — solo por si Realtime falla. Realtime ya cubre pedidos en tiempo real.
   setInterval(async () => {
     await loadOrders();
     renderOrders();
     renderDashboard();
     updateNewOrdersBadge();
-  }, 10000);
+  }, 60000);
 }
 
 function showNewOrderAlert() {
@@ -1999,6 +2008,26 @@ function renderProducts(filter='') {
 
 document.getElementById('prod-search').oninput = e => renderProducts(e.target.value);
 
+function addExtraImgRow(url) {
+  const container = document.getElementById('pf-extra-images');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  row.innerHTML = `
+    <input type="text" value="${url||''}" placeholder="URL de la imagen"
+           class="extra-img-url"
+           style="flex:1;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--ff);font-size:12px;outline:none">
+    ${url ? `<img src="${url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display='none'">` : '<div style="width:40px;height:40px;flex-shrink:0"></div>'}
+    <button type="button" onclick="this.closest('div').remove()"
+            style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:20px;line-height:1;flex-shrink:0;padding:0 4px">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function getExtraImages() {
+  return [...document.querySelectorAll('#pf-extra-images .extra-img-url')]
+    .map(el => el.value.trim()).filter(Boolean);
+}
+
 function openProductForm(product=null) {
   const cats = state.categories;
   const select = document.getElementById('pf-cat');
@@ -2030,6 +2059,8 @@ function openProductForm(product=null) {
       document.getElementById('img-preview').style.display = 'block';
       document.getElementById('img-upload-placeholder').style.display = 'none';
     }
+    document.getElementById('pf-extra-images').innerHTML = '';
+    (product.images || []).forEach(url => addExtraImgRow(url));
   } else {
     document.getElementById('pf-title').textContent = 'Nuevo producto';
     document.getElementById('pf-id').value = '';
@@ -2038,6 +2069,7 @@ function openProductForm(product=null) {
     loadPreviewConfig(null);
     document.getElementById('pf-available').value = 'true';
     document.getElementById('pf-featured').value = 'false';
+    document.getElementById('pf-extra-images').innerHTML = '';
   }
   document.getElementById('product-form-modal').classList.add('open');
 }
@@ -2284,7 +2316,8 @@ document.getElementById('btn-save-product').onclick = async () => {
     points: parseInt(document.getElementById('pf-points').value)||0,
     available: document.getElementById('pf-available').value==='true',
     featured: document.getElementById('pf-featured').value==='true',
-    preview_config: buildPreviewConfig()
+    preview_config: buildPreviewConfig(),
+    images: getExtraImages()
   };
   if (!data.name||!data.price) { showToast('Nombre y precio son requeridos'); return; }
   const btn = document.getElementById('btn-save-product');
