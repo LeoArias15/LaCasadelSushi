@@ -1374,7 +1374,7 @@ async function loadMenu() {
 
 async function loadProfile() {
   if (!state.user) return;
-  const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).single();
+  const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).maybeSingle();
   state.profile = data;
   renderLoyalty();
 
