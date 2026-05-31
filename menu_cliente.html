@@ -1779,6 +1779,7 @@ function openProductModal(productId) {
 
   const opts      = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
   const pc = p.preview_config || {};
+  state.currentPreviewType = pc.preview_type || 'sushi';
   let bases, isCamaron, previewRightMode; // 'options'|'fixed'|null
 
   if (pc.split !== undefined) {
@@ -1810,47 +1811,79 @@ function openProductModal(productId) {
   const optList   = document.getElementById('pm-options-list');
   const prevOnly  = document.getElementById('pm-preview-only');
 
-  if (opts.length) {
-    // Producto con selección de fruta
-    const hint = max === 1 ? 'Elige 1 opción' : `Selecciona hasta ${max} opciones`;
-    document.getElementById('pm-options-hint').textContent = hint;
-    optList.innerHTML = opts.map(o =>
-      `<button type="button" class="option-btn" onclick="toggleOption(this,'${o.replace(/'/g,"\\'")}')"> ${o}</button>`
-    ).join('');
-    optSec.style.display = 'block';
-    prevOnly.style.display = 'none';
-    // Preview inicial: roll con la apariencia de la base (sin fruta aún)
-    const initLbl = bases[0] ? baseChip(bases[0]) : '';
-    document.getElementById('pm-sushi-preview').innerHTML =
-      `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:11, shrimp:isCamaron, label:initLbl})}</div>`;
-  } else {
-    // Producto fijo: sin opciones
-    optSec.style.display = 'none';
-    let svgHTML = '';
-    const fixedTopping = pc.topping_color || null;
-    const fixedLbl     = pc.topping_name
-      ? `<span class="sushi-flavor-chip" style="background:${pc.topping_color||'#888'}">${pc.topping_name}</span>`
-      : null;
-
-    if (bases.length >= 2) {
-      const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
-      svgHTML = buildRollSVG(bases[0], bases[1], {lines:12, shrimp:isCamaron, label:lbl});
-    } else if (bases.length === 1 && fixedTopping) {
-      const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fixedLbl||''}`;
-      svgHTML = buildRollSVG(bases[0], fixedTopping, {lines:12, shrimp:isCamaron, label:lbl});
-    } else if (bases.length === 1) {
-      svgHTML = buildRollSVG(bases[0], null, {lines:12, shrimp:isCamaron, label:baseChip(bases[0])});
-    } else if (isCamaron) {
-      svgHTML = buildRollSVG(null, null, {lines:12, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
-    } else if (fixedTopping) {
-      svgHTML = buildRollSVG(fixedTopping, null, {lines:12, label:fixedLbl||''});
+  // Handle non-sushi preview types
+  const previewType = state.currentPreviewType;
+  if (previewType === 'charola') {
+    // Charola: show static preview, also show options if product has custom_options (for fruit choice)
+    document.getElementById('pm-sushi-preview-static').innerHTML =
+      `<div class="sushi-preview-wrap">${buildCharolaSVG(null)}</div>`;
+    prevOnly.style.display = 'block';
+    if (opts.length) {
+      const hint = max === 1 ? 'Elige la fruta' : `Selecciona hasta ${max} opciones`;
+      document.getElementById('pm-options-label').textContent = 'Elige la fruta de tu charola';
+      document.getElementById('pm-options-hint').textContent = hint;
+      optList.innerHTML = opts.map(o =>
+        `<button type="button" class="option-btn" onclick="toggleOption(this,'${o.replace(/'/g,"\\'")}')"> ${o}</button>`
+      ).join('');
+      optSec.style.display = 'block';
+      document.getElementById('pm-sushi-preview').innerHTML = '';
     }
-    if (svgHTML) {
-      document.getElementById('pm-sushi-preview-static').innerHTML =
-        `<div class="sushi-preview-wrap">${svgHTML}</div>`;
-      prevOnly.style.display = 'block';
-    } else {
+  } else if (previewType === 'yakimeshi') {
+    document.getElementById('pm-sushi-preview-static').innerHTML =
+      `<div class="sushi-preview-wrap">${buildYakimeshiSVG()}</div>`;
+    prevOnly.style.display = 'block';
+    optSec.style.display = 'none';
+  } else if (previewType === 'rollito_sencillo' || previewType === 'rollito_especial') {
+    const tipo = previewType === 'rollito_especial' ? 'especial' : 'sencillo';
+    document.getElementById('pm-sushi-preview-static').innerHTML =
+      `<div class="sushi-preview-wrap">${buildRollitoSVG(tipo)}</div>`;
+    prevOnly.style.display = 'block';
+    optSec.style.display = 'none';
+  } else {
+    // Default: sushi roll logic
+    if (opts.length) {
+      // Producto con selección de fruta
+      const hint = max === 1 ? 'Elige 1 opción' : `Selecciona hasta ${max} opciones`;
+      document.getElementById('pm-options-label').textContent = 'Elige tu sabor';
+      document.getElementById('pm-options-hint').textContent = hint;
+      optList.innerHTML = opts.map(o =>
+        `<button type="button" class="option-btn" onclick="toggleOption(this,'${o.replace(/'/g,"\\'")}')"> ${o}</button>`
+      ).join('');
+      optSec.style.display = 'block';
       prevOnly.style.display = 'none';
+      // Preview inicial: roll con la apariencia de la base (sin fruta aún)
+      const initLbl = bases[0] ? baseChip(bases[0]) : '';
+      document.getElementById('pm-sushi-preview').innerHTML =
+        `<div class="sushi-preview-wrap">${buildRollSVG(bases[0]||null, null, {lines:11, shrimp:isCamaron, label:initLbl})}</div>`;
+    } else {
+      // Producto fijo: sin opciones
+      optSec.style.display = 'none';
+      let svgHTML = '';
+      const fixedTopping = pc.topping_color || null;
+      const fixedLbl     = pc.topping_name
+        ? `<span class="sushi-flavor-chip" style="background:${pc.topping_color||'#888'}">${pc.topping_name}</span>`
+        : null;
+
+      if (bases.length >= 2) {
+        const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${baseChip(bases[1])}`;
+        svgHTML = buildRollSVG(bases[0], bases[1], {lines:12, shrimp:isCamaron, label:lbl});
+      } else if (bases.length === 1 && fixedTopping) {
+        const lbl = `${baseChip(bases[0])} <span style="color:var(--ink-muted)">+</span> ${fixedLbl||''}`;
+        svgHTML = buildRollSVG(bases[0], fixedTopping, {lines:12, shrimp:isCamaron, label:lbl});
+      } else if (bases.length === 1) {
+        svgHTML = buildRollSVG(bases[0], null, {lines:12, shrimp:isCamaron, label:baseChip(bases[0])});
+      } else if (isCamaron) {
+        svgHTML = buildRollSVG(null, null, {lines:12, shrimp:true, label:'<span class="sushi-flavor-chip" style="background:#f08868">Camarón</span>'});
+      } else if (fixedTopping) {
+        svgHTML = buildRollSVG(fixedTopping, null, {lines:12, label:fixedLbl||''});
+      }
+      if (svgHTML) {
+        document.getElementById('pm-sushi-preview-static').innerHTML =
+          `<div class="sushi-preview-wrap">${svgHTML}</div>`;
+        prevOnly.style.display = 'block';
+      } else {
+        prevOnly.style.display = 'none';
+      }
     }
   }
 
@@ -2901,6 +2934,155 @@ function buildRollSVG(left, right, opts = {}) {
     ${label ? `<div class="sushi-preview-label">${label}</div>` : ''}`;
 }
 
+// ── Build Charola SVG ──────────────────────────────────────────────────────
+// fruitColor: hex color string or null (null = gray with dashed overlay)
+function buildCharolaSVG(fruitColor) {
+  const cx = 80, cy = 80, R = 70;
+  // Sectors: [startDeg, endDeg, color, name]
+  // SVG 0° = right (3 o'clock), so -90° = top (12 o'clock)
+  const sectors = [
+    { s: -90, e: 0,   color: '#1e1e12', name: 'California' },
+    { s: 0,   e: 90,  color: fruitColor || '#909090', name: 'Fruta' },
+    { s: 90,  e: 180, color: '#c88218', name: 'Empanizado' },
+    { s: 180, e: 270, color: '#f0f0e8', name: 'Philadelphia' }
+  ];
+  const toRad = d => d * Math.PI / 180;
+  const pt = (angle, r) => [cx + r * Math.cos(toRad(angle)), cy + r * Math.sin(toRad(angle))];
+
+  // Pie sector paths
+  const sectorPaths = sectors.map(sec => {
+    const [x1, y1] = pt(sec.s, R);
+    const [x2, y2] = pt(sec.e, R);
+    return `<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${sec.color}"/>`;
+  }).join('');
+
+  // Dashed overlay for null fruit sector (bottom-right)
+  const fruitDash = !fruitColor ? `
+    <path d="M ${cx} ${cy} L ${pt(0,R)[0].toFixed(2)} ${pt(0,R)[1].toFixed(2)} A ${R} ${R} 0 0 1 ${pt(90,R)[0].toFixed(2)} ${pt(90,R)[1].toFixed(2)} Z"
+      fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-dasharray="5,4"/>
+    <text x="${(cx+pt(45,42)[0])/2}" y="${(cy+pt(45,42)[1])/2}" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.5)" font-family="sans-serif">?</text>
+  ` : '';
+
+  // 12 pieces per sector: 3 arcs × 4 pieces each
+  const arcRadii = [28, 44, 58];
+  let circles = '';
+  sectors.forEach((sec, si) => {
+    arcRadii.forEach(ar => {
+      for (let i = 0; i < 4; i++) {
+        const frac = (i + 0.5) / 4;
+        const ang = sec.s + frac * (sec.e - sec.s);
+        const [px, py] = pt(ang, ar);
+        // Lighter fill for philadelphia, darker for others
+        const dotFill = si === 3 ? 'rgba(160,155,130,0.7)' : 'rgba(255,255,255,0.15)';
+        circles += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5.5" fill="${dotFill}"/>`;
+        circles += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2" fill="rgba(0,0,0,0.35)"/>`;
+      }
+    });
+  });
+
+  // Dividing lines at 0°, 90°, 180°, 270°
+  const lines = [0, 90, 180, 270].map(a => {
+    const [px, py] = pt(a, R);
+    return `<line x1="${cx}" y1="${cy}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="rgba(255,255,255,0.75)" stroke-width="1.5"/>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 160 160" width="170" height="170" style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.28))">
+    <circle cx="${cx}" cy="${cy}" r="78" fill="#111" stroke="#333" stroke-width="1"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="#1a1a10"/>
+    ${sectorPaths}
+    ${fruitDash}
+    ${circles}
+    ${lines}
+    <circle cx="${cx}" cy="${cy}" r="6" fill="rgba(0,0,0,0.5)"/>
+  </svg>
+  ${fruitColor ? `<div class="sushi-preview-label">Charola 48 pzas</div>` : `<div class="sushi-preview-label" style="color:var(--ink-muted)">Charola 48 pzas — elige fruta</div>`}`;
+}
+
+// ── Build Yakimeshi SVG ─────────────────────────────────────────────────────
+function buildYakimeshiSVG() {
+  const cx = 80, cy = 80;
+  // Deterministic rice grains using golden ratio angle
+  const golden = 137.5 * Math.PI / 180;
+  let grains = '';
+  for (let i = 0; i < 38; i++) {
+    const angle = i * golden;
+    const r = 15 + (i % 7) * 6;
+    const clamp = Math.min(r, 55);
+    const gx = cx + clamp * Math.cos(angle);
+    const gy = cy + clamp * Math.sin(angle);
+    const rot = (angle * 180 / Math.PI) % 180;
+    const alpha = 0.25 + (i % 5) * 0.1;
+    grains += `<ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="4.5" ry="2" transform="rotate(${rot.toFixed(0)} ${gx.toFixed(1)} ${gy.toFixed(1)})" fill="rgba(200,150,60,${alpha.toFixed(2)})"/>`;
+  }
+  // Colored bits: zanahoria (orange), huevo (yellow), cebollín (green)
+  const bits = [
+    { x: 58, y: 52, r: 4.5, color: '#e07030', opacity: 0.85 },
+    { x: 44, y: 66, r: 4,   color: '#e07030', opacity: 0.75 },
+    { x: 100, y: 72, r: 3.5, color: '#f0c820', opacity: 0.9 },
+    { x: 92,  y: 56, r: 3,  color: '#f0c820', opacity: 0.8 },
+    { x: 68,  y: 98, r: 3.5, color: '#44aa44', opacity: 0.85 },
+    { x: 56,  y: 85, r: 3,  color: '#44aa44', opacity: 0.75 },
+    { x: 110, y: 90, r: 3,  color: '#44aa44', opacity: 0.8 }
+  ].map(b => `<circle cx="${b.x}" cy="${b.y}" r="${b.r}" fill="${b.color}" opacity="${b.opacity}"/>`).join('');
+
+  return `<svg viewBox="0 0 160 160" width="170" height="170" style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.18))">
+    <defs>
+      <filter id="yf-shadow"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.2"/></filter>
+    </defs>
+    <circle cx="${cx}" cy="${cy}" r="74" fill="#f5e6c8" filter="url(#yf-shadow)"/>
+    <circle cx="${cx}" cy="${cy}" r="67" fill="#c8963c"/>
+    <ellipse cx="88" cy="92" rx="26" ry="18" fill="#7a4f1e" opacity="0.55"/>
+    ${grains}
+    ${bits}
+    <circle cx="${cx}" cy="${cy}" r="67" fill="none" stroke="rgba(180,120,40,0.3)" stroke-width="2"/>
+  </svg>
+  <div class="sushi-preview-label">Yakimeshi</div>`;
+}
+
+// ── Build Rollito SVG ───────────────────────────────────────────────────────
+// tipo: 'sencillo' | 'especial'
+function buildRollitoSVG(tipo) {
+  const cx = 80, cy = 80;
+  const isEspecial = tipo === 'especial';
+
+  // Texture dots around the rim (golden fried shell)
+  let dots = '';
+  for (let i = 0; i < 10; i++) {
+    const ang = (i / 10) * 2 * Math.PI;
+    const dx = cx + 66 * Math.cos(ang);
+    const dy = cy + 66 * Math.sin(ang);
+    dots += `<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="3" fill="rgba(180,110,20,0.55)"/>`;
+  }
+
+  // Fillings
+  let filling = '';
+  if (isEspecial) {
+    // Queso philadelphia (large white circle), camarón (pink curved), carne (small brown)
+    filling = `
+      <circle cx="${cx}" cy="${cy}" r="18" fill="#f8f8ee" opacity="0.95"/>
+      <path d="M ${cx+6} ${cy-14} Q ${cx+22} ${cy-2} ${cx+8} ${cy+14}" stroke="#f09080" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+      <ellipse cx="${cx-10}" cy="${cy+10}" rx="8" ry="5" transform="rotate(-25 ${cx-10} ${cy+10})" fill="#8b5c2a" opacity="0.75"/>
+    `;
+  } else {
+    // Col (green top), tocino (brown right strip), carne (brown blob bottom)
+    filling = `
+      <ellipse cx="${cx-4}" cy="${cy-8}" rx="11" ry="7" transform="rotate(-20 ${cx-4} ${cy-8})" fill="#5aaa44" opacity="0.85"/>
+      <rect x="${cx+6}" y="${cy-6}" width="10" height="14" rx="3" fill="#c0784a" opacity="0.8"/>
+      <ellipse cx="${cx-2}" cy="${cy+12}" rx="10" ry="6" fill="#7a4428" opacity="0.75"/>
+    `;
+  }
+
+  return `<svg viewBox="0 0 160 160" width="170" height="170" style="filter:drop-shadow(0 8px 28px rgba(0,0,0,0.22))">
+    <circle cx="${cx}" cy="${cy}" r="72" fill="#d4a030"/>
+    <circle cx="${cx}" cy="${cy}" r="62" fill="#a06820"/>
+    <circle cx="${cx}" cy="${cy}" r="52" fill="#f0ece0"/>
+    <circle cx="${cx}" cy="${cy}" r="36" fill="#d4b888"/>
+    ${dots}
+    ${filling}
+  </svg>
+  <div class="sushi-preview-label">Rollito ${isEspecial ? 'Especial' : 'Sencillo'}</div>`;
+}
+
 function _DELETED_buildIngredientSVG(flavor1, flavor2, baseType, fullRoll) { return ''; if(false) {
   const baseMeta     = baseType ? BASE_META[baseType] : null;
   const isEmpanizado = baseType === 'empanizado';
@@ -3134,10 +3316,34 @@ function bases_includes_camaron(name) {
 }
 
 function renderSushiPreview() {
+  const previewType = state.currentPreviewType || 'sushi';
+  const sel = state.selectedOptions || [];
+
+  // Charola: update fruit sector color
+  if (previewType === 'charola') {
+    const el = document.getElementById('pm-sushi-preview');
+    const staticEl = document.getElementById('pm-sushi-preview-static');
+    const fruitColor = sel.length > 0 ? getFlavorColor(sel[0]) : null;
+    const svgWrap = `<div class="sushi-preview-wrap">${buildCharolaSVG(fruitColor)}</div>`;
+    if (sel.length > 0) {
+      // Show updated charola in the options-section preview (dynamic)
+      if (el) el.innerHTML = svgWrap;
+    } else {
+      if (el) el.innerHTML = '';
+      if (staticEl) staticEl.innerHTML = `<div class="sushi-preview-wrap">${buildCharolaSVG(null)}</div>`;
+    }
+    return;
+  }
+
+  // Non-sushi fixed types: nothing to update dynamically
+  if (previewType === 'yakimeshi' || previewType === 'rollito_sencillo' || previewType === 'rollito_especial') {
+    return;
+  }
+
+  // Default: sushi roll logic
   const el = document.getElementById('pm-sushi-preview');
   if (!el) return;
   const p         = state.currentProduct;
-  const sel       = state.selectedOptions || [];
   const leftBase  = state.previewLeftBase  || null;
   const rightMode = state.previewRightMode || null; // 'options'|'fixed'|'full-options'|null
   const rightFix  = state.previewRightFixed || null;

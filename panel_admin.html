@@ -767,6 +767,26 @@ body{
       <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
         <div style="font-size:13px;font-weight:600;margin-bottom:12px">🍣 Vista previa del roll</div>
 
+        <!-- Tipo de vista previa -->
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Tipo de vista previa</label>
+          <select id="pf-preview-type" onchange="onPreviewChange()">
+            <option value="sushi">Sushi (rollo individual)</option>
+            <option value="charola">Charola (48 pzas, 4 secciones)</option>
+            <option value="yakimeshi">Yakimeshi</option>
+            <option value="rollito_sencillo">Rollito Primavera Sencillo</option>
+            <option value="rollito_especial">Rollito Primavera Especial</option>
+          </select>
+        </div>
+
+        <!-- Info charola (visible solo cuando type=charola) -->
+        <div id="pf-charola-info" style="display:none;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+          Secciones fijas: California · Empanizado · Philadelphia · Fruta (cliente elige del menú de opciones)
+        </div>
+
+        <!-- Configuración sushi (visible solo cuando type=sushi) -->
+        <div id="pf-sushi-config">
+
         <!-- Toggle 2 mitades -->
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:14px;font-size:13px">
           <input type="checkbox" id="pf-split" onchange="onPreviewChange()">
@@ -866,6 +886,7 @@ body{
             </div>
           </div>
         </div>
+        </div><!-- /pf-sushi-config -->
 
         <!-- Mini preview -->
         <div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;background:var(--bg3);border-radius:var(--r)">
@@ -2074,23 +2095,34 @@ function outerToColor(val) {
 }
 
 function onPreviewChange() {
-  const split = document.getElementById('pf-split').checked;
-  document.getElementById('pf-right-card').style.display  = split ? '' : 'none';
-  document.getElementById('pf-left-title').textContent    = split ? 'MITAD IZQUIERDA' : 'MITAD ÚNICA';
-  const lt = document.getElementById('pf-left-type').value;
-  document.getElementById('pf-left-fixed-area').style.display = lt === 'fixed'   ? '' : 'none';
-  document.getElementById('pf-left-opts-info').style.display  = lt === 'options' ? '' : 'none';
-  document.getElementById('pf-left-top-area').style.display   =
-    lt === 'fixed' && document.getElementById('pf-lht').checked ? '' : 'none';
-  const rt = document.getElementById('pf-right-type').value;
-  document.getElementById('pf-right-fixed-area').style.display = rt === 'fixed'   ? '' : 'none';
-  document.getElementById('pf-right-opts-info').style.display  = rt === 'options' ? '' : 'none';
-  document.getElementById('pf-right-top-area').style.display   =
-    rt === 'fixed' && document.getElementById('pf-rht').checked ? '' : 'none';
+  const type = document.getElementById('pf-preview-type')?.value || 'sushi';
+  const isSushi = type === 'sushi';
+  document.getElementById('pf-sushi-config').style.display  = isSushi ? '' : 'none';
+  document.getElementById('pf-charola-info').style.display  = type === 'charola' ? '' : 'none';
+
+  if (isSushi) {
+    const split = document.getElementById('pf-split').checked;
+    document.getElementById('pf-right-card').style.display  = split ? '' : 'none';
+    document.getElementById('pf-left-title').textContent    = split ? 'MITAD IZQUIERDA' : 'MITAD ÚNICA';
+    const lt = document.getElementById('pf-left-type').value;
+    document.getElementById('pf-left-fixed-area').style.display = lt === 'fixed'   ? '' : 'none';
+    document.getElementById('pf-left-opts-info').style.display  = lt === 'options' ? '' : 'none';
+    document.getElementById('pf-left-top-area').style.display   =
+      lt === 'fixed' && document.getElementById('pf-lht').checked ? '' : 'none';
+    const rt = document.getElementById('pf-right-type').value;
+    document.getElementById('pf-right-fixed-area').style.display = rt === 'fixed'   ? '' : 'none';
+    document.getElementById('pf-right-opts-info').style.display  = rt === 'options' ? '' : 'none';
+    document.getElementById('pf-right-top-area').style.display   =
+      rt === 'fixed' && document.getElementById('pf-rht').checked ? '' : 'none';
+  }
   updateAdminPreview();
 }
 
 function buildPreviewConfig() {
+  const previewType = document.getElementById('pf-preview-type')?.value || 'sushi';
+  if (previewType !== 'sushi') {
+    return { preview_type: previewType };
+  }
   const split = document.getElementById('pf-split').checked;
   const lt = document.getElementById('pf-left-type').value;
   const lb = document.getElementById('pf-left-base').value || null;
@@ -2099,8 +2131,8 @@ function buildPreviewConfig() {
   const ln = lht ? (document.getElementById('pf-ln').value.trim()||null) : null;
   const left = { type:lt, base:lt==='fixed'?lb:null, topping_color:lc, topping_name:ln };
   if (!split) {
-    if (lt==='options'||lb||lc) return { split:false, left, right:null };
-    return null;
+    if (lt==='options'||lb||lc) return { preview_type:'sushi', split:false, left, right:null };
+    return { preview_type:'sushi' };
   }
   const rt = document.getElementById('pf-right-type').value;
   const rb = document.getElementById('pf-right-base').value || null;
@@ -2108,13 +2140,15 @@ function buildPreviewConfig() {
   const rc = rht ? (document.getElementById('pf-rh').value.trim()||null) : null;
   const rn = rht ? (document.getElementById('pf-rn').value.trim()||null) : null;
   const right = { type:rt, base:rt==='fixed'?rb:null, topping_color:rc, topping_name:rn };
-  return { split:true, left, right };
+  return { preview_type:'sushi', split:true, left, right };
 }
 
 function loadPreviewConfig(pc) {
   const set = (id,v) => { const e=document.getElementById(id); if(e) e.value=v||''; };
   const chk = (id,v) => { const e=document.getElementById(id); if(e) e.checked=!!v; };
   const col = (id,v) => { if(v&&/^#[0-9a-fA-F]{6}$/.test(v)){const e=document.getElementById(id);if(e)e.value=v;} };
+  const ptEl = document.getElementById('pf-preview-type');
+  if (ptEl) ptEl.value = pc?.preview_type || 'sushi';
   if (!pc || typeof pc!=='object' || pc.split===undefined) {
     chk('pf-split',false); set('pf-left-type','fixed'); set('pf-left-base','');
     chk('pf-lht',false); set('pf-lh',''); set('pf-ln','');
@@ -2137,6 +2171,64 @@ function loadPreviewConfig(pc) {
 function updateAdminPreview() {
   const c = document.getElementById('pf-preview-svg');
   if (!c) return;
+  const type = document.getElementById('pf-preview-type')?.value || 'sushi';
+
+  if (type === 'charola') {
+    // Simplified charola pie-chart preview (4 sectors)
+    const sectors = [
+      { color:'#1e1e12', startDeg:-90, endDeg:0 },
+      { color:'#909090', startDeg:0,   endDeg:90 },
+      { color:'#c88218', startDeg:90,  endDeg:180 },
+      { color:'#f0f0e8', startDeg:180, endDeg:270 }
+    ];
+    const r = 28, cx = 32, cy = 32;
+    const arc = (sd, ed) => {
+      const s = sd * Math.PI/180, e = ed * Math.PI/180;
+      const x1 = cx + r*Math.cos(s), y1 = cy + r*Math.sin(s);
+      const x2 = cx + r*Math.cos(e), y2 = cy + r*Math.sin(e);
+      return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`;
+    };
+    const paths = sectors.map(s => `<path d="${arc(s.startDeg,s.endDeg)}" fill="${s.color}"/>`).join('');
+    c.innerHTML = `<svg viewBox="0 0 64 64" width="64" height="64" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.2))">
+      <circle cx="32" cy="32" r="31" fill="#222" stroke="#444" stroke-width="2"/>
+      ${paths}
+      <line x1="32" y1="4" x2="32" y2="60" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
+      <line x1="4" y1="32" x2="60" y2="32" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
+      <circle cx="32" cy="32" r="5" fill="rgba(0,0,0,.4)"/>
+    </svg>`;
+    return;
+  }
+
+  if (type === 'yakimeshi') {
+    c.innerHTML = `<svg viewBox="0 0 64 64" width="64" height="64" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.2))">
+      <circle cx="32" cy="32" r="30" fill="#f5e6c8"/>
+      <circle cx="32" cy="32" r="26" fill="#c8963c"/>
+      <ellipse cx="36" cy="38" rx="10" ry="7" fill="#7a4f1e" opacity="0.6"/>
+      <circle cx="22" cy="28" r="3" fill="#e07c2a" opacity="0.8"/>
+      <circle cx="38" cy="24" r="2.5" fill="#f0d040" opacity="0.9"/>
+      <circle cx="44" cy="36" r="2" fill="#4aaa44" opacity="0.9"/>
+      <circle cx="28" cy="38" r="2" fill="#4aaa44" opacity="0.8"/>
+    </svg>`;
+    return;
+  }
+
+  if (type === 'rollito_sencillo' || type === 'rollito_especial') {
+    const isEspecial = type === 'rollito_especial';
+    c.innerHTML = `<svg viewBox="0 0 64 64" width="64" height="64" style="filter:drop-shadow(0 2px 8px rgba(0,0,0,.2))">
+      <circle cx="32" cy="32" r="30" fill="#d4a030"/>
+      <circle cx="32" cy="32" r="25" fill="#a06820"/>
+      <circle cx="32" cy="32" r="20" fill="#f0ece0"/>
+      <circle cx="32" cy="32" r="14" fill="#d4b888"/>
+      ${isEspecial
+        ? `<circle cx="32" cy="32" r="8" fill="#f8f8f0"/>
+           <ellipse cx="38" cy="28" rx="4" ry="2.5" fill="#f09080" transform="rotate(-30 38 28)"/>`
+        : `<ellipse cx="28" cy="26" rx="5" ry="3" fill="#5aaa44" transform="rotate(-20 28 26)"/>
+           <rect x="34" y="30" width="6" height="3" rx="1" fill="#8b5c2a"/>`}
+    </svg>`;
+    return;
+  }
+
+  // Default: sushi roll preview
   const split = document.getElementById('pf-split').checked;
   const lb = document.getElementById('pf-left-base').value;
   const lc = document.getElementById('pf-lht').checked ? document.getElementById('pf-lh').value : null;
