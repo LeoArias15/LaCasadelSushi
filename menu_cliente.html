@@ -901,6 +901,24 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
 </main>
 
 
+<!-- COMPLETE PROFILE MODAL -->
+<div class="modal-overlay" id="complete-profile-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">¡Bienvenido! 👋</h2>
+    <p class="modal-sub">Solo necesitamos tu nombre para identificar tu pedido.</p>
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input class="form-input" id="cp-firstname" placeholder="Tu nombre" autocomplete="given-name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Apellido</label>
+      <input class="form-input" id="cp-lastname" placeholder="Tu apellido" autocomplete="family-name">
+    </div>
+    <button class="btn-primary" id="btn-complete-profile">Continuar</button>
+  </div>
+</div>
+
 <!-- REWARDS MODAL -->
 <div class="rewards-modal-overlay" id="rewards-modal">
   <div class="rewards-sheet">
@@ -1089,6 +1107,14 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
     <div id="profile-logged-in" class="hidden">
       <h2 class="modal-title" id="profile-name-display">Mi cuenta</h2>
       <p class="modal-sub" style="margin-bottom:24px;">Bienvenido de vuelta</p>
+      <div class="profile-section">
+        <span class="profile-label">Nombre completo</span>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="profile-firstname" placeholder="Nombre">
+          <input class="form-input" id="profile-lastname" placeholder="Apellido">
+        </div>
+        <button class="btn-primary" style="margin-top:12px" id="btn-save-name">Guardar nombre</button>
+      </div>
       <div class="profile-section">
         <span class="profile-label">Teléfono</span>
         <input class="form-input" id="profile-phone-input" type="tel" placeholder="33 1234 5678">
@@ -1377,6 +1403,13 @@ async function loadProfile() {
   const { data } = await sb.from('profiles').select('*').eq('id', state.user.id).maybeSingle();
   state.profile = data;
   renderLoyalty();
+  checkProfileComplete();
+  if (data?.banned) {
+    showToast('Tu cuenta está suspendida. Contáctanos por WhatsApp.');
+    await sb.auth.signOut();
+    state.user = null; state.profile = null;
+    renderLoyalty();
+  }
 
   // Pre-fill checkout address
   if (data?.address_line) {
@@ -2381,7 +2414,11 @@ function updateProfileModal() {
   document.getElementById('profile-logged-out').classList.toggle('hidden', loggedIn);
   document.getElementById('profile-logged-in').classList.toggle('hidden', !loggedIn);
   if (loggedIn && state.profile) {
-    document.getElementById('profile-name-display').textContent = state.profile.name || 'Mi cuenta';
+    const fullName = state.profile.name || '';
+    const [fn = '', ln = ''] = fullName.split(' ');
+    document.getElementById('profile-name-display').textContent = fullName || 'Mi cuenta';
+    document.getElementById('profile-firstname').value = fn;
+    document.getElementById('profile-lastname').value = ln;
     document.getElementById('profile-phone-input').value = state.profile.phone || '';
     loadOrderHistory();
   }
@@ -2479,6 +2516,44 @@ async function uploadHistoryReceipt(input, orderId) {
   if (updErr) { showToast('Error al guardar el comprobante'); return; }
   showToast('Comprobante actualizado ✓');
   loadOrderHistory();
+}
+
+async function saveName() {
+  const fn = document.getElementById('profile-firstname').value.trim();
+  const ln = document.getElementById('profile-lastname').value.trim();
+  if (!fn) { showToast('Ingresa tu nombre'); return; }
+  const name = [fn, ln].filter(Boolean).join(' ');
+  const btn = document.getElementById('btn-save-name');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const { error } = await sb.from('profiles').update({ name }).eq('id', state.user.id);
+  btn.disabled = false; btn.textContent = 'Guardar nombre';
+  if (error) { showToast('Error al guardar'); return; }
+  if (state.profile) state.profile.name = name;
+  document.getElementById('profile-name-display').textContent = name;
+  showToast('Nombre guardado ✓');
+}
+
+async function completeProfile() {
+  const fn = document.getElementById('cp-firstname').value.trim();
+  const ln = document.getElementById('cp-lastname').value.trim();
+  if (!fn) { showToast('Ingresa tu nombre'); return; }
+  const name = [fn, ln].filter(Boolean).join(' ');
+  const btn = document.getElementById('btn-complete-profile');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  // Upsert profile con nombre
+  await sb.from('profiles').upsert({ id: state.user.id, name, email: state.user.email });
+  if (state.profile) state.profile.name = name;
+  else state.profile = { id: state.user.id, name, email: state.user.email };
+  btn.disabled = false;
+  closeModal('complete-profile-modal');
+  renderLoyalty();
+  showToast('¡Bienvenido, ' + fn + '! 🎉');
+}
+
+function checkProfileComplete() {
+  if (state.user && (!state.profile?.name || state.profile.name.trim() === '')) {
+    setTimeout(() => openModal('complete-profile-modal'), 800);
+  }
 }
 
 async function savePhone() {
@@ -2589,6 +2664,11 @@ function bindEvents() {
   document.getElementById('btn-open-auth').onclick = () => { closeModal('profile-modal'); openModal('auth-modal'); };
   document.getElementById('btn-logout').onclick = async () => { await sb.auth.signOut(); closeModal('profile-modal'); showToast('Sesión cerrada'); };
   document.getElementById('btn-save-phone').onclick = savePhone;
+  document.getElementById('btn-save-name').onclick = saveName;
+  document.getElementById('btn-complete-profile').onclick = completeProfile;
+  document.getElementById('complete-profile-modal').addEventListener('click', e => {
+    if (e.target.id === 'complete-profile-modal') {} // no cerrar al hacer click afuera
+  });
   document.getElementById('btn-save-address').onclick = saveAddress;
 
   // Product modal

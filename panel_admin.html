@@ -1104,9 +1104,11 @@ body{
 <script>
 const SUPABASE_URL = 'https://lacasadelsushi.vercel.app/supabase';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgwMjAxMzcxLCJleHAiOjIwOTU1NjEzNzF9.hwsC375tv9G92mJZvxJLTiZg_zfgK66vaizs2NEHoSw';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODAyMDEzNzEsImV4cCI6MjA5NTU2MTM3MX0.Az3dZHvZdPCwnPzcF8WpeUR3yG-GgevGpH4rpP7OQ60';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
 let state = {
   orders:[], products:[], categories:[], clients:[], settings:null,
@@ -2445,17 +2447,58 @@ async function deleteCategory(id) {
 function renderClients(filter='') {
   const clients = filter ? state.clients.filter(c=>(c.name||'').toLowerCase().includes(filter)||(c.email||'').toLowerCase().includes(filter)) : state.clients;
   document.getElementById('clients-tbody').innerHTML = clients.map(c=>`
-    <tr>
-      <td style="font-weight:500">${c.name||'—'}</td>
+    <tr style="${c.banned?'opacity:0.5;background:rgba(192,57,43,0.05)':''}">
+      <td style="font-weight:500">
+        ${c.banned?'<span style="background:#c0392b;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-right:4px">BANEADO</span>':''}
+        ${c.name||'—'}
+      </td>
       <td>${c.phone?`<a href="tel:${c.phone}" class="call-btn" style="padding:4px 10px;font-size:12px">${c.phone}</a>`:'—'}</td>
       <td style="color:var(--text2)">${c.email||'—'}</td>
       <td><span class="pill" style="background:var(--surface3);color:var(--text2)">${c.orders_count||0}</span></td>
       <td><span class="pill pill-gold">${c.points_total||0} pts</span></td>
       <td style="color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.address_line||'—'}</td>
-      <td><button class="action-btn" onclick="openClientModal('${c.id}')">Ver / Editar</button></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="action-btn" onclick="openClientModal('${c.id}')">Ver</button>
+        ${c.banned
+          ? `<button class="action-btn" style="background:var(--gold);color:#000" onclick="toggleBan('${c.id}',false)">Desbanear</button>`
+          : `<button class="action-btn" style="background:#e67e22;color:#fff" onclick="promptBan('${c.id}')">Banear</button>`
+        }
+        <button class="action-btn" style="background:#c0392b;color:#fff" onclick="deleteClient('${c.id}','${(c.name||'').replace(/'/g,"\\'")}')">Eliminar</button>
+      </td>
     </tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:30px">Sin clientes registrados</td></tr>';
 }
 document.getElementById('client-search').oninput = e => renderClients(e.target.value.toLowerCase());
+
+function promptBan(clientId) {
+  const reason = prompt('Motivo del baneo (opcional):') ?? '';
+  if (reason === null) return; // canceló
+  toggleBan(clientId, true, reason);
+}
+
+async function toggleBan(clientId, ban, reason='') {
+  const label = ban ? 'Baneando...' : 'Desbaneando...';
+  const { error } = await sb.from('profiles')
+    .update({ banned: ban, ban_reason: ban ? reason : null })
+    .eq('id', clientId);
+  if (error) { showToast('Error: ' + error.message); return; }
+  const idx = state.clients.findIndex(c => c.id === clientId);
+  if (idx !== -1) { state.clients[idx].banned = ban; state.clients[idx].ban_reason = ban ? reason : null; }
+  renderClients();
+  showToast(ban ? '🚫 Usuario baneado' : '✅ Usuario desbaneado');
+}
+
+async function deleteClient(clientId, name) {
+  if (!confirm(`¿Eliminar al usuario "${name}"? Esta acción no se puede deshacer.`)) return;
+  // Eliminar de auth.users (cascada a profiles)
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${clientId}`, {
+    method: 'DELETE',
+    headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }
+  });
+  if (!res.ok) { showToast('Error al eliminar usuario'); return; }
+  state.clients = state.clients.filter(c => c.id !== clientId);
+  renderClients();
+  showToast('Usuario eliminado');
+}
 
 async function openClientModal(clientId) {
   const c = state.clients.find(x=>x.id===clientId);
