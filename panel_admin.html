@@ -1169,6 +1169,8 @@ document.getElementById('l-user').addEventListener('keydown', e => { if(e.key===
 document.getElementById('l-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('btn-logout').onclick = async () => {
   await sb.auth.signOut();
+  sb.removeAllChannels();
+  _realtimeReady = false;   // permitir re-suscripción si vuelve a iniciar sesión
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 };
@@ -1178,50 +1180,38 @@ async function initApp() {
   setDateFilter(7);
   startClock(); setupNav(); setToday();
 
-  const loadBanner = document.createElement('div');
-  loadBanner.id = 'app-loading-banner';
-  loadBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--gold);color:#000;font-size:13px;font-weight:600;text-align:center;padding:8px;letter-spacing:0.03em';
-  loadBanner.textContent = 'Cargando configuración…';
-  document.body.appendChild(loadBanner);
-
-  // ── FASE 1: datos rápidos (productos, categorías, settings) ──
-  // Timeout generoso de 20s solo para estos
-  try {
-    const t1 = new Promise((_, r) => setTimeout(() => r(new Error('Timeout config')), 20000));
-    await Promise.race([
-      Promise.all([loadProducts(), loadCategories(), loadSettings()]),
-      t1
-    ]);
-  } catch (e) {
-    console.error('Phase 1 load error:', e);
-    loadBanner.style.background = '#c0392b';
-    loadBanner.style.color = '#fff';
-    loadBanner.innerHTML = `Error de conexión: ${e.message}. <button onclick="location.reload()" style="margin-left:12px;background:#fff;color:#c0392b;border:none;border-radius:4px;padding:3px 10px;font-weight:700;cursor:pointer">Reintentar</button>`;
-  }
-
-  // Renderizar UI inmediatamente con lo que hay — el panel ya es usable
-  loadBanner.remove();
+  // Mostrar el panel inmediatamente con estado vacío — sin bloquear
   setupRealtime();
-  updateStatusToggles();
+  renderOrders(); renderDashboard(); updateStatusToggles();
   renderProducts(); renderCategories();
 
-  // ── FASE 2: pedidos en segundo plano (son muchos y tardan más) ──
-  const ordersSpinner = document.createElement('div');
-  ordersSpinner.id = 'orders-loading-bar';
-  ordersSpinner.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9998;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;color:var(--text2);box-shadow:0 2px 12px rgba(0,0,0,0.15)';
-  ordersSpinner.textContent = '⏳ Cargando pedidos…';
-  document.body.appendChild(ordersSpinner);
+  // Indicador flotante de carga (no bloquea la UI)
+  const pill = document.createElement('div');
+  pill.id = 'load-pill';
+  pill.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:9998;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--text2);box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;align-items:center;gap:8px;transition:opacity .4s';
+  pill.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 1.2s infinite"></span> Sincronizando con Supabase…';
+  document.body.appendChild(pill);
 
+  const hidePill = () => { pill.style.opacity='0'; setTimeout(()=>pill.remove(),400); };
+  const errPill  = (msg) => {
+    pill.innerHTML = `⚠ ${msg} <button onclick="location.reload()" style="margin-left:8px;background:var(--red);color:#fff;border:none;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">Reintentar</button>`;
+    pill.style.borderColor = 'var(--red)';
+  };
+
+  // Cargar TODO en paralelo sin timeout — Supabase puede tardar en el primer
+  // handshake HTTP (TLS + connection pool), pero siempre responde.
   try {
-    await loadOrders();
-    ordersSpinner.remove();
+    await Promise.all([
+      loadProducts().then(() => renderProducts()),
+      loadCategories().then(() => renderCategories()),
+      loadSettings().then(() => { updateStatusToggles(); updateStatusBar(); }),
+      loadOrders().then(() => { renderOrders(); renderDashboard(); updateNewOrdersBadge(); }),
+    ]);
+    hidePill();
   } catch (e) {
-    console.error('Orders load error:', e);
-    ordersSpinner.textContent = '⚠ Error cargando pedidos';
-    setTimeout(() => ordersSpinner.remove(), 4000);
+    console.error('initApp load error:', e);
+    errPill('Error al cargar datos');
   }
-
-  renderOrders(); renderDashboard(); updateNewOrdersBadge();
 }
 
 setInterval(updateStatusBar, 60000);
@@ -1288,7 +1278,12 @@ async function loadClients() {
 }
 
 // ── REALTIME ──
+let _realtimeReady = false;
 function setupRealtime() {
+  if (_realtimeReady) return;   // evitar doble suscripción
+  _realtimeReady = true;
+  sb.removeAllChannels();       // limpiar canales huérfanos de sesiones anteriores
+
   // Orders realtime
   sb.channel('admin-orders')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'orders'},
@@ -2849,6 +2844,15 @@ function toggleSidebar() {
   document.getElementById('sidebar-overlay').classList.toggle('open');
 }
 document.getElementById('sidebar-overlay').addEventListener('click', toggleSidebar);
+
+// Calentar la conexión HTTPS a Supabase en cuanto carga la página.
+// El primer request TCP+TLS puede tardar 15-30s en frío; hacerlo aquí
+// (antes del login) hace que cuando el admin inicia sesión ya esté listo.
+(function warmupSupabase() {
+  fetch(`${SUPABASE_URL}/rest/v1/settings?select=id&limit=1`, {
+    headers: { apikey: SUPABASE_ANON_KEY }
+  }).catch(() => {});
+})();
 
 initAuth();
 </script>

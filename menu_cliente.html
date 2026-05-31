@@ -1283,11 +1283,12 @@ let state = {
 // ═══════════════════════════════════════════════
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    state.user = session.user;
-    await loadProfile();
-  }
-  await Promise.all([loadSettings(), loadMenu(), loadRewards()]);
+  if (session) state.user = session.user;
+
+  // Cargar todo en paralelo — incluyendo perfil si hay sesión
+  const loads = [loadSettings(), loadMenu(), loadRewards()];
+  if (session) loads.push(loadProfile());
+  await Promise.all(loads);
   renderStatus();
   renderPaymentOptions();
   bindEvents();
@@ -1374,17 +1375,21 @@ function updateWhatsAppLinks() {
 async function loadMenu() {
   document.getElementById('menu-loader').style.display = 'flex';
   try {
-    const [{ data: cats, error: catErr }, { data: prods, error: prodErr }] = await Promise.all([
+    // Cargar categorías, productos y conteo de pedidos en paralelo
+    const [
+      { data: cats,  error: catErr  },
+      { data: prods, error: prodErr },
+      { count }
+    ] = await Promise.all([
       sb.from('categories').select('*').eq('active', true).order('sort_order'),
-      sb.from('products').select('*,categories(name,emoji)').order('sort_order')
+      sb.from('products').select('*,categories(name,emoji)').order('sort_order'),
+      sb.from('orders').select('*', { count: 'exact', head: true })
+        .in('status', ['pending','confirmed','preparing'])
     ]);
-    if (catErr) console.error('Categories error:', catErr);
+    if (catErr)  console.error('Categories error:', catErr);
     if (prodErr) console.error('Products error:', prodErr);
     state.categories = cats || [];
-    state.products = prods || [];
-
-    const { count } = await sb.from('orders').select('*', { count: 'exact', head: true })
-      .in('status', ['pending','confirmed','preparing']);
+    state.products   = prods || [];
     state.pendingOrdersCount = count || 0;
   } catch(e) {
     console.error('loadMenu error:', e);
@@ -2138,7 +2143,7 @@ async function placeOrder() {
       return;
     }
 
-    // Insert order items
+    // Ejecutar todo en paralelo tras crear el pedido — evitar llamadas secuenciales
     const items = state.cart.map(i => ({
       order_id: order.id,
       product_id: i.id,
@@ -2148,30 +2153,41 @@ async function placeOrder() {
       notes: i.notes || null,
       subtotal: i.price * i.quantity
     }));
-    await sb.from('order_items').insert(items);
 
-    // Save phone to profile if user logged in and phone changed
+    const parallelOps = [
+      sb.from('order_items').insert(items)
+    ];
+
     if (state.user && checkoutPhone && checkoutPhone !== state.profile?.phone) {
-      await sb.from('profiles').update({ phone: checkoutPhone }).eq('id', state.user.id);
-      if (state.profile) state.profile.phone = checkoutPhone;
-      document.getElementById('profile-phone-input').value = checkoutPhone;
+      parallelOps.push(
+        sb.from('profiles').update({ phone: checkoutPhone }).eq('id', state.user.id)
+          .then(() => {
+            if (state.profile) state.profile.phone = checkoutPhone;
+            const el = document.getElementById('profile-phone-input');
+            if (el) el.value = checkoutPhone;
+          })
+      );
     }
 
-    // Deduct points from profile and record individual redemptions
     if (state.user && totalPointsSpent > 0) {
       const newTotal = Math.max(0, (state.profile?.points_total || 0) - totalPointsSpent);
-      await sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id);
-      if (state.profile) state.profile.points_total = newTotal;
-      for (const r of appliedRewardsCopy) {
-        await sb.from('redemptions').insert({
+      parallelOps.push(
+        sb.from('profiles').update({ points_total: newTotal }).eq('id', state.user.id)
+          .then(() => { if (state.profile) state.profile.points_total = newTotal; })
+      );
+      // Redemptions también en paralelo (sin loop secuencial)
+      parallelOps.push(
+        ...appliedRewardsCopy.map(r => sb.from('redemptions').insert({
           user_id: state.user.id,
           reward_id: r.id,
           order_id: order.id,
           reward_name: r.name,
           points_spent: r.points_cost
-        });
-      }
+        }))
+      );
     }
+
+    await Promise.all(parallelOps);
 
     // Show confirmation - disable backdrop so menu stays accessible
     const backdrop = document.getElementById('cart-backdrop');
@@ -3319,18 +3335,23 @@ function renderSushiPreview() {
   const previewType = state.currentPreviewType || 'sushi';
   const sel = state.selectedOptions || [];
 
-  // Charola: update fruit sector color
+  // Charola: actualizar el sector de fruta y mostrar solo UN preview
   if (previewType === 'charola') {
-    const el = document.getElementById('pm-sushi-preview');
-    const staticEl = document.getElementById('pm-sushi-preview-static');
+    const el       = document.getElementById('pm-sushi-preview');
+    const prevOnly = document.getElementById('pm-preview-only');
     const fruitColor = sel.length > 0 ? getFlavorColor(sel[0]) : null;
-    const svgWrap = `<div class="sushi-preview-wrap">${buildCharolaSVG(fruitColor)}</div>`;
+    const lbl = fruitColor
+      ? `Charola 48 pzas — <span class="sushi-flavor-chip" style="background:${fruitColor}">${sel[0]}</span>`
+      : 'Charola 48 pzas — elige la fruta';
+    const svgWrap = `<div class="sushi-preview-wrap">${buildCharolaSVG(fruitColor)}<div class="sushi-preview-label">${lbl}</div></div>`;
     if (sel.length > 0) {
-      // Show updated charola in the options-section preview (dynamic)
+      // Mostrar charola actualizada en pm-sushi-preview y ocultar el estático
       if (el) el.innerHTML = svgWrap;
+      if (prevOnly) prevOnly.style.display = 'none';
     } else {
+      // Sin selección: ocultar dinámico y mostrar estático (pending)
       if (el) el.innerHTML = '';
-      if (staticEl) staticEl.innerHTML = `<div class="sushi-preview-wrap">${buildCharolaSVG(null)}</div>`;
+      if (prevOnly) prevOnly.style.display = 'block';
     }
     return;
   }
