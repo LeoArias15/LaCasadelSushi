@@ -1205,7 +1205,8 @@ sb.auth.onAuthStateChange((event, session) => {
 async function initApp() {
   setDateFilter(30); // mostrar último mes por defecto
   startClock(); setupNav(); setToday();
-  setupRealtime();
+  // Realtime deshabilitado — Vercel proxy no soporta WebSocket
+  // Los pedidos nuevos se recargan al volver a la pestaña (visibilitychange)
 
   // Pill de carga — no bloquea la UI
   const pill = document.createElement('div');
