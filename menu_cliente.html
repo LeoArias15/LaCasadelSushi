@@ -2111,7 +2111,6 @@ function openProductModal(productId) {
   document.getElementById('pm-total').textContent = '$' + p.price.toFixed(0);
 
   state.selectedOptions = [];
-<<<<<<< HEAD
   document.getElementById('pm-sushi-preview').innerHTML = '';
   document.getElementById('pm-sushi-preview-static').innerHTML = '';
 
@@ -2135,21 +2134,6 @@ function openProductModal(productId) {
     state.previewRightMode = previewRightMode;
     state.previewRightFixed = rb;
     state.previewLeftTopping = lc.topping_color || null;
-=======
-  const fc = document.getElementById('flavor-canvas');
-  if (fc) { fc.style.display = 'none'; fc.getContext('2d').clearRect(0,0,fc.width,fc.height); }
-  const opts = Array.isArray(p.custom_options) ? p.custom_options.filter(Boolean) : [];
-  const optSec = document.getElementById('pm-options-section');
-  const optList = document.getElementById('pm-options-list');
-  if (opts.length) {
-    const max = p.options_max || 2;
-    optList.innerHTML = opts.map(o =>
-      `<button type="button" class="option-btn" onclick="toggleOption(this,'${o.replace(/'/g,"\\'")}')"> ${o}</button>`
-    ).join('');
-    document.getElementById('pm-options-hint').textContent =
-      max === 1 ? 'Selecciona 1 opción' : `Selecciona hasta ${max} opciones`;
-    optSec.style.display = 'block';
->>>>>>> 49ef693 (Rediseno con estilo japones, logos de mejor calidad y mejoras de UX)
   } else {
     // Auto-detectar del nombre del producto
     bases = getBasePair(p.name);
@@ -3126,7 +3110,6 @@ function bindEvents() {
 }
 
 const FLAVOR_COLORS = {
-<<<<<<< HEAD
   'fresa':         '#e03055',
   'strawberry':    '#e03055',
   'aguacate':      '#4a9e28',
@@ -3815,130 +3798,6 @@ function renderSushiPreview() {
       : (c2 ? `${fc(sel[0],c1)} ${plus} ${fc(sel[1],c2)}` : fc(sel[0],c1));
   }
   el.innerHTML = `<div class="sushi-preview-wrap">${buildRollSVG(left, right, {lines:12, shrimp:isCamaron, label:lbl})}</div>`;
-=======
-  'fresa':     { bg:'#f8bbd0', accent:'#c62828', emoji:'🍓' },
-  'mango':     { bg:'#ffe0b2', accent:'#e65100', emoji:'🥭' },
-  'maracuya':  { bg:'#fff9c4', accent:'#f9a825', emoji:'🌟' },
-  'maracuyá':  { bg:'#fff9c4', accent:'#f9a825', emoji:'🌟' },
-  'guayaba':   { bg:'#f8bbd0', accent:'#880e4f', emoji:'🍈' },
-  'piña':      { bg:'#fff9c4', accent:'#f57f17', emoji:'🍍' },
-  'pina':      { bg:'#fff9c4', accent:'#f57f17', emoji:'🍍' },
-  'limon':     { bg:'#f0f4c3', accent:'#558b2f', emoji:'🍋' },
-  'limón':     { bg:'#f0f4c3', accent:'#558b2f', emoji:'🍋' },
-  'naranja':   { bg:'#ffe0b2', accent:'#bf360c', emoji:'🍊' },
-  'uva':       { bg:'#e1bee7', accent:'#6a1b9a', emoji:'🍇' },
-  'kiwi':      { bg:'#dcedc8', accent:'#33691e', emoji:'🥝' },
-  'sandia':    { bg:'#ffcdd2', accent:'#b71c1c', emoji:'🍉' },
-  'sandía':    { bg:'#ffcdd2', accent:'#b71c1c', emoji:'🍉' },
-  'chocolate': { bg:'#d7ccc8', accent:'#3e2723', emoji:'🍫' },
-  'nutella':   { bg:'#bcaaa4', accent:'#3e2723', emoji:'🍫' },
-  'cajeta':    { bg:'#ffe0b2', accent:'#6d4c41', emoji:'🍮' },
-  'oreo':      { bg:'#b0bec5', accent:'#212121', emoji:'🍪' },
-  'vainilla':  { bg:'#fff8e1', accent:'#795548', emoji:'🍦' },
-  'tamarindo': { bg:'#d7ccc8', accent:'#4e342e', emoji:'🌶️' },
-  'chamoy':    { bg:'#ffcdd2', accent:'#c62828', emoji:'🌶️' },
-};
-
-function getFlavorColor(name) {
-  const key = name.toLowerCase().replace(/[áéíóúàèìòùäëïöüâêîôûñ]/g, c => 'aeiouaeiouaeiouaeioun'.charAt('áéíóúàèìòùäëïöüâêîôûñ'.indexOf(c))).trim();
-  if (FLAVOR_COLORS[key]) return FLAVOR_COLORS[key];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const h = Math.abs(hash) % 360;
-  return { bg:`hsl(${h},55%,82%)`, accent:`hsl(${h},45%,32%)`, emoji:'✨' };
-}
-
-function updateFlavorPreview() {
-  const canvas = document.getElementById('flavor-canvas');
-  if (!canvas) return;
-  const selected = state.selectedOptions || [];
-
-  if (selected.length === 0) {
-    canvas.style.display = 'none';
-    return;
-  }
-
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.clearRect(0, 0, W, H);
-
-  if (selected.length === 1) {
-    const c = getFlavorColor(selected[0]);
-    ctx.fillStyle = c.bg;
-    ctx.fillRect(0, 0, W, H);
-
-    ctx.font = '54px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(c.emoji, W / 2, H / 2 + 10);
-
-    ctx.font = 'bold 15px DM Sans, sans-serif';
-    ctx.fillStyle = c.accent;
-    ctx.fillText(selected[0], W / 2, H / 2 + 36);
-
-    ctx.font = '11px DM Sans, sans-serif';
-    ctx.fillStyle = c.accent + 'aa';
-    ctx.fillText('Tu sabor', W / 2, 20);
-
-  } else {
-    const c1 = getFlavorColor(selected[0]);
-    const c2 = getFlavorColor(selected[1]);
-    const split = 0.5;
-    const skew  = 32;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(W * split + skew, 0);
-    ctx.lineTo(W * split - skew, H);
-    ctx.lineTo(0, H);
-    ctx.closePath();
-    ctx.fillStyle = c1.bg;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(W * split + skew, 0);
-    ctx.lineTo(W, 0);
-    ctx.lineTo(W, H);
-    ctx.lineTo(W * split - skew, H);
-    ctx.closePath();
-    ctx.fillStyle = c2.bg;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.beginPath();
-    ctx.moveTo(W * split + skew, 0);
-    ctx.lineTo(W * split - skew, H);
-    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    const lx = W * 0.25, rx = W * 0.75;
-
-    ctx.font = '42px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(c1.emoji, lx, H / 2 + 8);
-    ctx.font = 'bold 13px DM Sans, sans-serif';
-    ctx.fillStyle = c1.accent;
-    ctx.fillText(selected[0], lx, H / 2 + 30);
-
-    ctx.font = '42px serif';
-    ctx.fillStyle = '#000';
-    ctx.fillText(c2.emoji, rx, H / 2 + 8);
-    ctx.font = 'bold 13px DM Sans, sans-serif';
-    ctx.fillStyle = c2.accent;
-    ctx.fillText(selected[1], rx, H / 2 + 30);
-
-    ctx.font = '11px DM Sans, sans-serif';
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.textAlign = 'center';
-    ctx.fillText('Tu combinación', W / 2, 20);
-  }
->>>>>>> 49ef693 (Rediseno con estilo japones, logos de mejor calidad y mejoras de UX)
 }
 
 function toggleOption(btn, option) {
@@ -3960,11 +3819,7 @@ function toggleOption(btn, option) {
     btn.classList.add('selected');
     state.selectedOptions = [...(state.selectedOptions||[]), option];
   }
-<<<<<<< HEAD
   renderSushiPreview();
-=======
-  updateFlavorPreview();
->>>>>>> 49ef693 (Rediseno con estilo japones, logos de mejor calidad y mejoras de UX)
 }
 
 function swapLogo(theme) {
