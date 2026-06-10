@@ -439,6 +439,7 @@ body{
 </style>
 </head>
 <body>
+<div id="bg-layer" aria-hidden="true"></div>
 
 <!-- LOGIN -->
 <div id="login-screen">
@@ -1107,8 +1108,12 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5v
 const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODAyMDEzNzEsImV4cCI6MjA5NTU2MTM3MX0.Az3dZHvZdPCwnPzcF8WpeUR3yG-GgevGpH4rpP7OQ60';
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storageKey: 'sb-admin-auth-token' }
+});
+const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  auth: { storageKey: 'sb-admin-service-token' }
+});
 
 let state = {
   orders:[], products:[], categories:[], clients:[], settings:null,
