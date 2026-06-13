@@ -276,11 +276,11 @@ create policy "Anyone can insert orders"
   on public.orders for insert with check (true);
 create policy "Admin view all orders"
   on public.orders for select using (
-    (auth.jwt()->'user_metadata'->>'role') = 'admin'
+    (auth.jwt()->'app_metadata'->>'role') = 'admin'
   );
 create policy "Admin update orders"
   on public.orders for update using (
-    (auth.jwt()->'user_metadata'->>'role') = 'admin'
+    (auth.jwt()->'app_metadata'->>'role') = 'admin'
   );
 
 -- ORDER ITEMS
@@ -299,7 +299,7 @@ create policy "Admin view all order items"
   );
 create policy "Admin manage order items"
   on public.order_items for all using (
-    (auth.jwt()->'user_metadata'->>'role') = 'admin'
+    (auth.jwt()->'app_metadata'->>'role') = 'admin'
   );
 
 -- SETTINGS
