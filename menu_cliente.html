@@ -27,13 +27,12 @@
   --paper: #faf8f5;
   --paper-warm: #f3efe8;
   --paper-card: #ffffff;
-  --gold-light: #f1e9da;
   --red: #c8102e;
   --red-deep: #8c1116;
   --red-soft: #f3dada;
   --sakura: #f7d9de;
-  --gold: #ad8a4e;
-  --gold-light: #f1e9da;
+  --gold: var(--red);
+  --gold-light: var(--red-soft);
   --border: rgba(0,0,0,0.08);
   --border-strong: rgba(0,0,0,0.15);
   --shadow-soft: 0 2px 12px rgba(0,0,0,0.06);
@@ -974,7 +973,7 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
   --ink:#f2f2f7;--ink-soft:#ebebf5;--ink-muted:#8e8e93;--ink-faint:#48484a;
   --paper:#080a10;--paper-warm:rgba(255,255,255,0.05);--paper-card:rgba(255,255,255,0.06);
   --border:rgba(255,255,255,0.08);--border-strong:rgba(255,255,255,0.14);
-  --gold:#cba876;--gold-light:rgba(203,168,118,0.16);
+  --gold:var(--red);--gold-light:var(--red-soft);
   --red:#ff6b6b;--red-soft:rgba(255,107,107,0.15);
   --shadow-soft:0 2px 12px rgba(0,0,0,0.5);
   --shadow-card:0 4px 24px rgba(0,0,0,0.6);
@@ -1159,7 +1158,7 @@ body,header,.product-card,.modal-sheet,.cart-panel,.cat-nav,.form-input{transiti
       <div style="font-family:var(--ff-display);font-size:32px;font-weight:300;color:var(--gold)" id="loyalty-count">0</div>
       <div class="loyalty-sub" style="margin-top:2px" id="loyalty-sub"></div>
     </div>
-    <button onclick="openRewardsModal()" style="background:var(--gold);color:#000;border:none;border-radius:10px;padding:12px 20px;font-family:var(--ff);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Ver recompensas</button>
+    <button onclick="openRewardsModal()" style="background:var(--gold);color:#fff;border:none;border-radius:10px;padding:12px 20px;font-family:var(--ff);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0">Ver recompensas</button>
   </div>
 </div>
 
