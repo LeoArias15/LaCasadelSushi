@@ -1700,7 +1700,7 @@ function openOrderModal(orderId) {
 
 async function saveInternalNote(orderId) {
   const note = document.getElementById('internal-note-input').value;
-  await sb.from('orders').update({notes: note}).eq('id', orderId);
+  await sbAdmin.from('orders').update({notes: note}).eq('id', orderId);
   const idx = state.orders.findIndex(o=>o.id===orderId);
   if (idx!==-1) state.orders[idx].internal_note = note;
   const msg = document.getElementById('note-saved-msg');
@@ -1708,7 +1708,7 @@ async function saveInternalNote(orderId) {
 }
 
 async function updateOrderStatus(orderId, newStatus) {
-  await sb.from('orders').update({status:newStatus}).eq('id',orderId);
+  await sbAdmin.from('orders').update({status:newStatus}).eq('id',orderId);
   const idx = state.orders.findIndex(o=>o.id===orderId);
   if (idx!==-1) state.orders[idx].status = newStatus;
   closeOrderModal(); renderOrders();
@@ -1864,21 +1864,21 @@ async function saveOrderEdits(orderId) {
     total: Math.max(0, newSubtotal - discAmt),
   };
 
-  const { error: orderErr } = await sb.from('orders').update(updates).eq('id', orderId);
+  const { error: orderErr } = await sbAdmin.from('orders').update(updates).eq('id', orderId);
   if (orderErr) { showToast('Error: ' + orderErr.message); btn.disabled = false; btn.textContent = 'Guardar cambios'; return; }
 
   // Update / delete existing items
   for (const it of existing) {
     if (it.quantity === 0) {
-      await sb.from('order_items').delete().eq('id', it.id);
+      await sbAdmin.from('order_items').delete().eq('id', it.id);
     } else {
-      await sb.from('order_items').update({ quantity: it.quantity, subtotal: it.subtotal }).eq('id', it.id);
+      await sbAdmin.from('order_items').update({ quantity: it.quantity, subtotal: it.subtotal }).eq('id', it.id);
     }
   }
 
   // Insert new items
   if (newItems.length) {
-    await sb.from('order_items').insert(newItems.map(it => ({
+    await sbAdmin.from('order_items').insert(newItems.map(it => ({
       order_id: orderId,
       product_id: it.product_id,
       product_name: it.product_name,
@@ -2945,7 +2945,7 @@ document.getElementById('btn-confirm-cancel').onclick = async () => {
   // Get order data to check if points need to be refunded
   const order = state.orders.find(o => o.id === orderId);
 
-  await sb.from('orders').update({
+  await sbAdmin.from('orders').update({
     status: 'cancelled',
     internal_note: cancelReason
   }).eq('id', orderId);
