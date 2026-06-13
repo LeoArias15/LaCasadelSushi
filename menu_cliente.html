@@ -2698,7 +2698,7 @@ function showAuthView(viewId) {
 async function handleGoogleAuth() {
   await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + window.location.pathname }
+    options: { redirectTo: 'https://lacasadelsushi.vercel.app/menu_cliente.html' }
   });
 }
 
