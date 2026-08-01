@@ -2060,7 +2060,10 @@ function renderCart() {
   (state.appliedRewards || []).forEach(r => {
     if (r.reward_type === 'discount_percent') rewardDiscountAmt += subtotal * (r.discount_percent / 100);
   });
-  const total = Math.max(0, subtotal - rewardDiscountAmt);
+  const vipDiscPct = state.profile?.discount_percent || 10;
+  const vipDiscountAmt = state.profile?.discount_active ? subtotal * vipDiscPct / 100 : 0;
+  const totalDiscountAmt = rewardDiscountAmt + vipDiscountAmt;
+  const total = Math.max(0, subtotal - totalDiscountAmt);
 
   const safeSet = (id, val, prop='textContent') => { const el=document.getElementById(id); if(el) el[prop]=val; };
   const safeToggle = (id, cls, force) => { const el=document.getElementById(id); if(el) el.classList.toggle(cls, force); };
@@ -2068,9 +2071,9 @@ function renderCart() {
 
   safeSet('cart-subtotal', '$' + subtotal.toFixed(0));
   safeSet('cart-total-display', '$' + total.toFixed(0));
-  safeSet('cart-discount', '-$' + rewardDiscountAmt.toFixed(0));
-  safeToggle('discount-banner', 'hidden', rewardDiscountAmt === 0);
-  safeToggle('cart-discount-row', 'hidden', rewardDiscountAmt === 0);
+  safeSet('cart-discount', '-$' + totalDiscountAmt.toFixed(0));
+  safeToggle('discount-banner', 'hidden', totalDiscountAmt === 0);
+  safeToggle('cart-discount-row', 'hidden', totalDiscountAmt === 0);
   safeProp('btn-checkout', 'disabled', isEmpty);
 
   // btn-total-display is inside cart-step-2, may not exist
@@ -2421,7 +2424,7 @@ async function placeOrder() {
 
   // VIP discount
   const hasDiscount = state.profile?.discount_active;
-  const discPct = state.settings?.discount_percent || 10;
+  const discPct = state.profile?.discount_percent || 10;
   const vipDiscAmt = hasDiscount ? subtotal * discPct / 100 : 0;
 
   // Reward-based discount (discount_percent type rewards)
