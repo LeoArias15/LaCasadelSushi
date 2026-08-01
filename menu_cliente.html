@@ -1610,7 +1610,11 @@ async function init() {
   // Cargar todo en paralelo — incluyendo perfil si hay sesión
   const loads = [loadSettings(), loadMenu(), loadRewards()];
   if (session) loads.push(loadProfile());
-  await Promise.all(loads);
+  try {
+    await Promise.all(loads);
+  } catch (err) {
+    console.error('Error cargando datos iniciales:', err);
+  }
   renderStatus();
   renderPaymentOptions();
   bindEvents();
@@ -2656,39 +2660,46 @@ function evalPasswordStrength() {
 }
 
 async function handleRegister() {
-  const name = document.getElementById('reg-name').value.trim();
-  const phone = document.getElementById('reg-phone').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const confirm = document.getElementById('reg-password-confirm').value;
   const errEl = document.getElementById('auth-error-reg');
-  errEl.classList.remove('visible');
-
-  if (!name || !email) {
-    errEl.textContent = 'Por favor completa todos los campos obligatorios.';
-    errEl.classList.add('visible'); return;
-  }
-  if (password.length < 6 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-    errEl.textContent = 'La contraseña debe tener mínimo 6 caracteres, una letra y un número.';
-    errEl.classList.add('visible'); return;
-  }
-  if (password !== confirm) {
-    errEl.textContent = 'Las contraseñas no coinciden.';
-    errEl.classList.add('visible'); return;
-  }
-
   const btn = document.getElementById('btn-register');
-  btn.disabled = true; btn.textContent = 'Creando cuenta...';
+  try {
+    const name = document.getElementById('reg-name').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirm = document.getElementById('reg-password-confirm').value;
+    errEl.classList.remove('visible');
 
-  const { error } = await sb.auth.signUp({
-    email, password,
-    options: { data: { name, phone } }
-  });
-  btn.disabled = false; btn.textContent = 'Crear mi cuenta';
-  if (error) { errEl.textContent = error.message; errEl.classList.add('visible'); return; }
-  // Show confirm-email screen instead of closing
-  document.getElementById('confirm-email-display').textContent = email;
-  showAuthView('auth-confirm-view');
+    if (!name || !email) {
+      errEl.textContent = 'Por favor completa todos los campos obligatorios.';
+      errEl.classList.add('visible'); return;
+    }
+    if (password.length < 6 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      errEl.textContent = 'La contraseña debe tener mínimo 6 caracteres, una letra y un número.';
+      errEl.classList.add('visible'); return;
+    }
+    if (password !== confirm) {
+      errEl.textContent = 'Las contraseñas no coinciden.';
+      errEl.classList.add('visible'); return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Creando cuenta...';
+
+    const { error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { name, phone } }
+    });
+    if (error) { errEl.textContent = error.message; errEl.classList.add('visible'); return; }
+    // Show confirm-email screen instead of closing
+    document.getElementById('confirm-email-display').textContent = email;
+    showAuthView('auth-confirm-view');
+  } catch (err) {
+    console.error('handleRegister failed:', err);
+    errEl.textContent = 'Ocurrió un error inesperado: ' + (err?.message || err);
+    errEl.classList.add('visible');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Crear mi cuenta';
+  }
 }
 
 function showAuthView(viewId) {
